@@ -406,6 +406,10 @@ async function loadEmployees() {
                   <button onclick="event.stopPropagation();showEmployeeDetail(${e.id})" class="text-blue-500 hover:text-blue-700 mx-1" title="Chi tiết"><i class="fas fa-eye"></i></button>
                   <button onclick="event.stopPropagation();showEditEmployee(${e.id})" class="text-green-500 hover:text-green-700 mx-1" title="Chỉnh sửa"><i class="fas fa-edit"></i></button>
                   <button onclick="event.stopPropagation();showAddContractModal(${e.id},'${e.full_name}')" class="text-purple-500 hover:text-purple-700 mx-1" title="Thêm HĐ"><i class="fas fa-file-contract"></i></button>
+                  ${e.source_app === 'MANUAL' ? `
+                  <button onclick="event.stopPropagation();toggleEmployeeActive(${e.id},'${e.full_name.replace(/'/g,"\\'")}',${e.is_active})" class="${e.is_active ? 'text-orange-500 hover:text-orange-700' : 'text-teal-500 hover:text-teal-700'} mx-1" title="${e.is_active ? 'Vô hiệu hóa' : 'Kích hoạt'}"><i class="fas fa-${e.is_active ? 'user-slash' : 'user-check'}"></i></button>
+                  <button onclick="event.stopPropagation();confirmDeleteEmployee(${e.id},'${e.full_name.replace(/'/g,"\\'")}' )" class="text-red-500 hover:text-red-700 mx-1" title="Xóa nhân viên"><i class="fas fa-trash"></i></button>
+                  ` : ''}
                 </td>
               </tr>`
             }).join('')}
@@ -425,7 +429,33 @@ async function loadEmployees() {
   } catch(e) { showToast('Lỗi tải danh sách', 'error') }
 }
 
-async function showEmployeeDetail(id) {
+async function toggleEmployeeActive(id, name, currentActive) {
+  const action = currentActive ? 'vô hiệu hóa' : 'kích hoạt lại'
+  if (!confirm(`Bạn có chắc muốn ${action} nhân viên "${name}"?`)) return
+  try {
+    const r = await API.patch(`/api/employees/${id}/toggle-active`)
+    const newState = r.data.is_active ? 'Đang làm' : 'Đã nghỉ'
+    showToast(`Đã ${action} nhân viên ${name} → ${newState}`, 'success')
+    loadEmployees()
+  } catch(err) {
+    const msg = err.response?.data?.error || 'Lỗi khi thay đổi trạng thái'
+    showToast(msg, 'error')
+  }
+}
+
+async function confirmDeleteEmployee(id, name) {
+  if (!confirm(`⚠️ Xóa nhân viên "${name}"?\n\nHành động này sẽ xóa toàn bộ dữ liệu liên quan (hợp đồng, lịch sử). Không thể hoàn tác!`)) return
+  try {
+    await API.delete(`/api/employees/${id}`)
+    showToast(`Đã xóa nhân viên ${name}`, 'success')
+    loadEmployees()
+  } catch(err) {
+    const msg = err.response?.data?.error || 'Lỗi khi xóa nhân viên'
+    showToast(msg, 'error')
+  }
+}
+
+
   try {
     const r = await API.get(`/api/employees/${id}`)
     const { employee: e, contracts, leaves, history } = r.data
@@ -552,6 +582,10 @@ async function showEmployeeDetail(id) {
       </div>
     </div>`,
     `<button onclick="closeModal();showEditEmployee(${e.id})" class="btn-primary"><i class="fas fa-edit"></i>Chỉnh sửa HCNS</button>
+     ${e.source_app === 'MANUAL' ? `
+     <button onclick="closeModal();toggleEmployeeActive(${e.id},'${e.full_name.replace(/'/g,"\\'")}',${e.is_active})" class="btn-secondary" style="background:${e.is_active?'#f97316':'#14b8a6'};border-color:${e.is_active?'#f97316':'#14b8a6'};color:#fff"><i class="fas fa-${e.is_active?'user-slash':'user-check'}"></i>${e.is_active?'Vô hiệu hóa':'Kích hoạt'}</button>
+     <button onclick="closeModal();confirmDeleteEmployee(${e.id},'${e.full_name.replace(/'/g,"\\'")}' )" style="background:#ef4444;border:none;color:#fff;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px"><i class="fas fa-trash" style="margin-right:5px"></i>Xóa</button>
+     ` : ''}
      <button onclick="closeModal()" class="btn-ghost">Đóng</button>`)
   } catch(e) { showToast('Lỗi tải chi tiết', 'error') }
 }

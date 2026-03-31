@@ -423,6 +423,38 @@ app.post('/api/employees', authMiddleware, async (c) => {
   return c.json({ success: true, id: result.meta.last_row_id })
 })
 
+// Vô hiệu hóa / kích hoạt nhân viên MANUAL
+app.patch('/api/employees/:id/toggle-active', authMiddleware, async (c) => {
+  const db = c.env.DB
+  const id = parseInt(c.req.param('id'), 10)
+
+  const emp = await db.prepare(`SELECT id, source_app, is_active FROM employees WHERE id = ?`).bind(id).first() as any
+  if (!emp) return c.json({ error: 'Không tìm thấy nhân viên' }, 404)
+  if (emp.source_app !== 'MANUAL') return c.json({ error: 'Chỉ có thể vô hiệu hóa nhân viên MANUAL' }, 403)
+
+  const newActive = emp.is_active ? 0 : 1
+  await db.prepare(`UPDATE employees SET is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).bind(newActive, id).run()
+  return c.json({ success: true, is_active: newActive })
+})
+
+// Xóa nhân viên MANUAL (chỉ được xóa nếu source_app = MANUAL)
+app.delete('/api/employees/:id', authMiddleware, async (c) => {
+  const db = c.env.DB
+  const id = parseInt(c.req.param('id'), 10)
+
+  const emp = await db.prepare(`SELECT id, source_app, full_name FROM employees WHERE id = ?`).bind(id).first() as any
+  if (!emp) return c.json({ error: 'Không tìm thấy nhân viên' }, 404)
+  if (emp.source_app !== 'MANUAL') return c.json({ error: 'Chỉ có thể xóa nhân viên MANUAL. Nhân viên từ BIM/C3D phải được quản lý tại nguồn.' }, 403)
+
+  // Xóa các dữ liệu liên quan trước
+  await db.prepare(`DELETE FROM hr_reminders WHERE employee_id = ?`).bind(id).run()
+  await db.prepare(`DELETE FROM employee_history WHERE employee_id = ?`).bind(id).run()
+  await db.prepare(`DELETE FROM contracts WHERE employee_id = ?`).bind(id).run()
+  await db.prepare(`DELETE FROM employees WHERE id = ?`).bind(id).run()
+
+  return c.json({ success: true, message: `Đã xóa nhân viên ${emp.full_name}` })
+})
+
 // ===== CONTRACTS =====
 app.get('/api/contracts', authMiddleware, async (c) => {
   const db = c.env.DB
