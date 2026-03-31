@@ -128,6 +128,15 @@ function srcBadge(src) {
   const map = { BIM: 'badge-bim', C3D: 'badge-c3d', MANUAL: 'badge-manual' }
   return `<span class="${map[src] || 'badge-manual'}">${src}</span>`
 }
+function fmtGender(g) {
+  if (!g) return '—'
+  const v = g.toLowerCase().trim()
+  if (v === 'male' || v === 'nam') return 'Nam'
+  if (v === 'female' || v === 'nữ' || v === 'nu') return 'Nữ'
+  if (v === 'other' || v === 'khác' || v === 'khac') return 'Khác'
+  return g
+}
+
 function contractTypeName(t) {
   const map = { trial: 'Thử việc', fixed_term: 'Có thời hạn', indefinite: 'Vô thời hạn', seasonal: 'Thời vụ' }
   return map[t] || t
@@ -453,7 +462,7 @@ async function showEmployeeDetail(id) {
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
           <div class="info-cell"><div class="lbl">Ngày sinh</div><div class="val">${fmtDate(e.date_of_birth)}</div></div>
-          <div class="info-cell"><div class="lbl">Giới tính</div><div class="val">${e.gender || '—'}</div></div>
+          <div class="info-cell"><div class="lbl">Giới tính</div><div class="val">${fmtGender(e.gender)}</div></div>
           <div class="info-cell"><div class="lbl">CMND / CCCD</div><div class="val" style="font-family:monospace">${e.id_number || '—'}</div></div>
           <div class="info-cell"><div class="lbl">Ngày cấp · Nơi cấp</div><div class="val">${e.id_issue_date ? fmtDate(e.id_issue_date)+(e.id_issue_place?' · '+e.id_issue_place:'') : '—'}</div></div>
           <div class="info-cell" style="grid-column:span 2"><div class="lbl">Địa chỉ thường trú</div><div class="val">${e.address || '—'}</div></div>
@@ -563,7 +572,7 @@ async function showEditEmployee(id) {
         <div>${lbl('Ngày ký HĐ chính thức')}<input type="date" name="official_start" value="${e.official_start||''}"></div>
         <div>${lbl('Số điện thoại')}<input name="phone" value="${e.phone||''}"></div>
         <div>${lbl('Giới tính')}
-          <select name="gender"><option value="">— Chọn —</option><option ${e.gender==='Nam'?'selected':''}>Nam</option><option ${e.gender==='Nữ'?'selected':''}>Nữ</option><option ${e.gender==='Khác'?'selected':''}>Khác</option></select></div>
+          <select name="gender"><option value="">— Chọn —</option><option value="Nam" ${e.gender==='Nam'||e.gender==='male'?'selected':''}>Nam</option><option value="Nữ" ${e.gender==='Nữ'||e.gender==='female'?'selected':''}>Nữ</option><option value="Khác" ${e.gender==='Khác'||e.gender==='other'?'selected':''}>Khác</option></select></div>
       </div>
 
       <!-- Section: Cá nhân -->

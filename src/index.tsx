@@ -719,8 +719,19 @@ app.post('/api/sync/:appName', authMiddleware, async (c) => {
       return c.json({ success: true, added: 0, updated: 0, total: 0 })
     }
 
+    // Chuẩn hóa gender: convert male/female/other → Nam/Nữ/Khác
+    const normalizeGender = (g: string | null): string => {
+      if (!g) return ''
+      const v = g.toLowerCase().trim()
+      if (v === 'male' || v === 'nam' || v === 'm') return 'Nam'
+      if (v === 'female' || v === 'nữ' || v === 'nu' || v === 'f') return 'Nữ'
+      if (v === 'other' || v === 'khác' || v === 'khac') return 'Khác'
+      return g // giữ nguyên nếu không nhận dạng được
+    }
+
     let added = 0, updated = 0
     for (const u of users) {
+      u.gender = normalizeGender(u.gender)
       const existing = await db.prepare('SELECT id FROM employees WHERE source_app = ? AND source_id = ?').bind(appName, u.id).first() as any
       if (existing) {
         // Cập nhật thông tin từ app nguồn — CHỈ ghi đè các trường đến từ nguồn,
@@ -753,7 +764,7 @@ app.post('/api/sync/:appName', authMiddleware, async (c) => {
         ).bind(
           u.username, u.full_name, u.email, u.phone,
           u.role, u.department, u.salary_monthly ?? 0, u.is_active ?? 1,
-          // gender
+          // gender (đã normalize)
           u.gender, u.gender,
           // position
           u.position, u.position,
