@@ -587,9 +587,16 @@ app.put('/api/data-sources/:id', authMiddleware, async (c) => {
   const db = c.env.DB
   const id = c.req.param('id')
   const { cf_account_id, cf_database_id, cf_api_token, is_active } = await c.req.json()
-  await db.prepare(
-    'UPDATE data_sources SET cf_account_id = ?, cf_database_id = ?, cf_api_token = ?, is_active = ? WHERE id = ?'
-  ).bind(cf_account_id, cf_database_id, cf_api_token, is_active ?? 1, id).run()
+  // Nếu token để trống → giữ nguyên token cũ (không ghi đè bằng null)
+  if (cf_api_token) {
+    await db.prepare(
+      'UPDATE data_sources SET cf_account_id = ?, cf_database_id = ?, cf_api_token = ?, is_active = ? WHERE id = ?'
+    ).bind(cf_account_id, cf_database_id, cf_api_token, is_active ?? 1, id).run()
+  } else {
+    await db.prepare(
+      'UPDATE data_sources SET cf_account_id = ?, cf_database_id = ?, is_active = ? WHERE id = ?'
+    ).bind(cf_account_id, cf_database_id, is_active ?? 1, id).run()
+  }
   return c.json({ success: true })
 })
 

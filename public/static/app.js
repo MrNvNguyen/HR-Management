@@ -1246,12 +1246,12 @@ async function renderSync() {
             <div>
               <div class="font-bold text-gray-800 text-lg">${s.app_name} Project Management</div>
               <div class="flex items-center gap-3 mt-1">
-                <span class="text-xs px-3 py-1 rounded-full font-medium ${s.sync_status==='success'?'bg-green-100 text-green-700':s.sync_status==='error'?'bg-red-100 text-red-700':'bg-gray-100 text-gray-500'}">
+                <span class="sync-status-badge text-xs px-3 py-1 rounded-full font-medium ${s.sync_status==='success'?'bg-green-100 text-green-700':s.sync_status==='error'?'bg-red-100 text-red-700':'bg-gray-100 text-gray-500'}">
                   ${s.sync_status==='success'?'<i class="fas fa-check-circle mr-1"></i>Đồng bộ thành công':s.sync_status==='error'?'<i class="fas fa-times-circle mr-1"></i>Lỗi kết nối':'<i class="fas fa-clock mr-1"></i>Chưa đồng bộ'}
                 </span>
-                ${s.last_sync ? `<span class="text-xs text-gray-400"><i class="far fa-clock mr-1"></i>${dayjs(s.last_sync).format('DD/MM/YYYY HH:mm')}</span>` : ''}
+                ${s.last_sync ? `<span class="sync-time text-xs text-gray-400"><i class="far fa-clock mr-1"></i>${dayjs(s.last_sync).format('DD/MM/YYYY HH:mm')}</span>` : '<span class="sync-time text-xs text-gray-400 hidden"></span>'}
               </div>
-              ${s.sync_message ? `<div class="text-xs mt-1 ${s.sync_status==='error'?'text-red-600':'text-gray-500'}">${s.sync_message}</div>` : ''}
+              <div class="sync-message text-xs mt-1 ${s.sync_status==='error'?'text-red-600':'text-gray-500'}">${s.sync_message || ''}</div>
             </div>
           </div>
           <div class="flex gap-2">
@@ -1364,9 +1364,12 @@ async function saveSource(id, appName, silent = false) {
 }
 
 async function testConnection(appName, sourceId) {
-  // Lưu im lặng trước — nếu thiếu trường bắt buộc sẽ báo lỗi
-  const saved = await saveSource(sourceId, appName, true)
-  if (!saved) { showToast('Vui lòng nhập đủ Account ID và Database ID trước', 'error'); return }
+  // Kiểm tra accId / dbId trước
+  const accId = document.getElementById(`accId_${sourceId}`)?.value?.trim()
+  const dbId = document.getElementById(`dbId_${sourceId}`)?.value?.trim()
+  if (!accId || !dbId) { showToast('Vui lòng nhập đủ Account ID và Database ID trước', 'error'); return }
+  // Lưu cấu hình im lặng (bảo toàn token cũ nếu không nhập mới)
+  await saveSource(sourceId, appName, true)
   const btn = document.getElementById(`testBtn_${appName}`)
   const icon = document.getElementById(`testIcon_${appName}`)
   const resultDiv = document.getElementById(`testResult_${appName}`)
@@ -1387,9 +1390,15 @@ async function testConnection(appName, sourceId) {
 }
 
 async function syncSource(appName, sourceId) {
-  // Lưu im lặng — không toast khi sync, chỉ báo lỗi nếu thiếu field bắt buộc
-  const saved = await saveSource(sourceId, appName, true)
-  if (!saved) { showToast('Vui lòng nhập đủ Account ID và Database ID trước', 'error'); return }
+  // Kiểm tra accId / dbId trong form trước
+  const accId = document.getElementById(`accId_${sourceId}`)?.value?.trim()
+  const dbId = document.getElementById(`dbId_${sourceId}`)?.value?.trim()
+  if (!accId || !dbId) {
+    showToast('Vui lòng nhập đủ Account ID và Database ID trước', 'error')
+    return
+  }
+  // Lưu cấu hình im lặng (chỉ update nếu có thay đổi)
+  await saveSource(sourceId, appName, true)
   const btn = document.getElementById(`syncBtn_${appName}`)
   const icon = document.getElementById(`syncIcon_${appName}`)
   btn.disabled = true
@@ -1397,13 +1406,41 @@ async function syncSource(appName, sourceId) {
   try {
     const r = await API.post(`/api/sync/${appName}`)
     showToast(`✓ Đồng bộ ${appName} thành công: +${r.data.added} mới, ~${r.data.updated} cập nhật (tổng ${r.data.total})`, 'success', 6000)
-    renderSync()
+    // Chỉ cập nhật badge trạng thái, không re-render toàn bộ để tránh reset form
+    refreshSyncStatus(appName, 'success', r.data)
   } catch(e) {
-    showToast('Lỗi đồng bộ: ' + (e.response?.data?.error || e.message), 'error', 8000)
-    renderSync()
+    const errMsg = e.response?.data?.error || e.message
+    showToast('Lỗi đồng bộ: ' + errMsg, 'error', 8000)
+    refreshSyncStatus(appName, 'error', null, errMsg)
   } finally {
     btn.disabled = false
     icon.classList.remove('fa-spin')
+  }
+}
+
+// Cập nhật trạng thái sync trên card mà không re-render toàn bộ
+function refreshSyncStatus(appName, status, data, errMsg) {
+  const card = document.getElementById(`sourceCard_${appName}`)
+  if (!card) return
+  const badge = card.querySelector('.sync-status-badge')
+  const timeEl = card.querySelector('.sync-time')
+  const msgEl = card.querySelector('.sync-message')
+  const now = dayjs().format('DD/MM/YYYY HH:mm')
+  if (badge) {
+    if (status === 'success') {
+      badge.className = 'sync-status-badge text-xs px-3 py-1 rounded-full font-medium bg-green-100 text-green-700'
+      badge.innerHTML = '<i class="fas fa-check-circle mr-1"></i>Đồng bộ thành công'
+    } else {
+      badge.className = 'sync-status-badge text-xs px-3 py-1 rounded-full font-medium bg-red-100 text-red-700'
+      badge.innerHTML = '<i class="fas fa-times-circle mr-1"></i>Lỗi kết nối'
+    }
+  }
+  if (timeEl) timeEl.innerHTML = `<i class="far fa-clock mr-1"></i>${now}`
+  if (msgEl) {
+    msgEl.className = `sync-message text-xs mt-1 ${status === 'error' ? 'text-red-600' : 'text-gray-500'}`
+    msgEl.textContent = status === 'success' && data
+      ? `Đồng bộ: +${data.added} mới, ~${data.updated} cập nhật (tổng ${data.total})`
+      : (errMsg || '')
   }
 }
 
