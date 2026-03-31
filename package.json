@@ -1,12 +1,17 @@
 {
-  "name": "webapp",
+  "name": "hr-management",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:sandbox": "wrangler pages dev dist --d1=hr-management-production --local --ip 0.0.0.0 --port 3000",
     "build": "vite build",
-    "preview": "wrangler pages dev",
-    "deploy": "npm run build && wrangler pages deploy",
-    "cf-typegen": "wrangler types --env-interface CloudflareBindings"
+    "preview": "wrangler pages dev dist",
+    "deploy": "npm run build && wrangler pages deploy dist --project-name hr-management",
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+    "db:migrate:local": "wrangler d1 migrations apply hr-management-production --local",
+    "db:migrate:prod": "wrangler d1 migrations apply hr-management-production",
+    "db:seed": "wrangler d1 execute hr-management-production --local --file=./migrations/0002_seed_data.sql",
+    "db:reset": "rm -rf .wrangler/state/v3/d1 && npm run db:migrate:local && npm run db:seed"
   },
   "dependencies": {
     "hono": "^4.12.9"

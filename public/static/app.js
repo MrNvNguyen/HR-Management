@@ -1,0 +1,1279 @@
+// ===================================================
+// HCNS - HR Management System Frontend
+// OneCad Vietnam
+// ===================================================
+
+const API = axios.create({ baseURL: '/' })
+let currentUser = null
+let dashboardCharts = {}
+
+// ===== AUTH =====
+function getToken() { return localStorage.getItem('hcns_token') }
+function setToken(t) { localStorage.setItem('hcns_token', t) }
+function removeToken() { localStorage.removeItem('hcns_token') }
+
+API.interceptors.request.use(cfg => {
+  const t = getToken()
+  if (t) cfg.headers.Authorization = `Bearer ${t}`
+  return cfg
+})
+API.interceptors.response.use(r => r, err => {
+  if (err.response?.status === 401) { removeToken(); showLogin() }
+  return Promise.reject(err)
+})
+
+async function login() {
+  const u = document.getElementById('loginUsername').value.trim()
+  const p = document.getElementById('loginPassword').value
+  if (!u || !p) { showToast('Vui lòng nhập đầy đủ thông tin', 'error'); return }
+  try {
+    const r = await API.post('/api/auth/login', { username: u, password: p })
+    setToken(r.data.token)
+    currentUser = r.data.user
+    showApp()
+  } catch (e) {
+    showToast(e.response?.data?.error || 'Đăng nhập thất bại', 'error')
+  }
+}
+
+function logout() {
+  removeToken()
+  currentUser = null
+  showLogin()
+}
+
+function showLogin() {
+  document.getElementById('loginScreen').classList.remove('hidden')
+  document.getElementById('mainApp').classList.add('hidden')
+}
+
+function showApp() {
+  document.getElementById('loginScreen').classList.add('hidden')
+  document.getElementById('mainApp').classList.remove('hidden')
+  if (currentUser) {
+    document.getElementById('userName').textContent = currentUser.full_name
+    document.getElementById('userRole').textContent = currentUser.role === 'hr_admin' ? 'Quản trị HCNS' : 'Nhân viên HCNS'
+    const initial = currentUser.full_name.charAt(0).toUpperCase()
+    document.getElementById('userAvatar').textContent = initial
+    document.getElementById('topUserAvatar').textContent = initial
+  }
+  updateDateTime()
+  setInterval(updateDateTime, 1000)
+  showPage('dashboard')
+}
+
+function updateDateTime() {
+  const now = new Date()
+  document.getElementById('currentDateTime').textContent = now.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+// ===== NAVIGATION =====
+function showPage(page) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'))
+  const clicked = document.querySelector(`[onclick="showPage('${page}')"]`)
+  if (clicked) clicked.classList.add('active')
+
+  const titles = {
+    dashboard: ['Dashboard', 'Tổng quan hệ thống HCNS'],
+    employees: ['Danh sách Nhân viên', 'Quản lý hồ sơ nhân viên từ BIM & C3D'],
+    contracts: ['Hợp đồng Lao động', 'Quản lý hợp đồng & nhắc nhở hết hạn'],
+    leaves: ['Quản lý Nghỉ phép', 'Theo dõi nghỉ phép nhân viên'],
+    reminders: ['Nhắc nhở HCNS', 'Các nhắc nhở quan trọng cần xử lý'],
+    reports: ['Báo cáo HCNS', 'Báo cáo tổng hợp nhân sự'],
+    sync: ['Đồng bộ Dữ liệu', 'Kéo dữ liệu từ BIM & C3D về HCNS'],
+    settings: ['Cài đặt', 'Cài đặt hệ thống HCNS']
+  }
+  const [title, sub] = titles[page] || ['', '']
+  document.getElementById('pageTitle').textContent = title
+  document.getElementById('pageSubtitle').textContent = sub
+
+  const pages = { dashboard: renderDashboard, employees: renderEmployees, contracts: renderContracts, leaves: renderLeaves, reminders: renderReminders, reports: renderReports, sync: renderSync, settings: renderSettings }
+  if (pages[page]) pages[page]()
+}
+
+// ===== TOAST =====
+function showToast(msg, type = 'success', duration = 4000) {
+  const colors = { success: 'bg-green-500', error: 'bg-red-500', warning: 'bg-orange-500', info: 'bg-blue-500' }
+  const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle' }
+  const toast = document.createElement('div')
+  toast.className = `toast ${colors[type]} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 min-w-72 max-w-sm`
+  toast.innerHTML = `<i class="fas ${icons[type]}"></i><span class="flex-1 text-sm">${msg}</span><button onclick="this.parentElement.remove()" class="ml-2 opacity-70 hover:opacity-100"><i class="fas fa-times"></i></button>`
+  document.getElementById('toastContainer').appendChild(toast)
+  setTimeout(() => toast.remove(), duration)
+}
+
+// ===== MODAL =====
+function showModal(title, content, footer = '') {
+  const html = `<div class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal-content bg-white w-full max-w-2xl shadow-2xl" style="max-height:90vh;overflow-y:auto">
+      <div class="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10">
+        <h3 class="font-semibold text-gray-800">${title}</h3>
+        <button onclick="closeModal()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="p-6">${content}</div>
+      ${footer ? `<div class="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">${footer}</div>` : ''}
+    </div>
+  </div>`
+  document.getElementById('modalContainer').innerHTML = html
+}
+
+function closeModal() { document.getElementById('modalContainer').innerHTML = '' }
+
+// ===== HELPERS =====
+function fmt(v) { if (!v) return '<span class="text-gray-300">—</span>'; return v }
+function fmtDate(d) { if (!d) return '<span class="text-gray-300">—</span>'; return dayjs(d).format('DD/MM/YYYY') }
+function fmtMoney(v) { if (!v) return '—'; return new Intl.NumberFormat('vi-VN').format(v) + ' ₫' }
+function daysDiff(d) { if (!d) return null; return Math.ceil((new Date(d) - new Date()) / 86400000) }
+function srcBadge(src) {
+  const map = { BIM: 'badge-bim', C3D: 'badge-c3d', MANUAL: 'badge-manual' }
+  return `<span class="${map[src] || 'badge-manual'}">${src}</span>`
+}
+function contractTypeName(t) {
+  const map = { trial: 'Thử việc', fixed_term: 'Có thời hạn', indefinite: 'Vô thời hạn', seasonal: 'Thời vụ' }
+  return map[t] || t
+}
+function priorityBadge(p) {
+  const map = { urgent: 'bg-red-100 text-red-700', high: 'bg-orange-100 text-orange-700', medium: 'bg-yellow-100 text-yellow-700', low: 'bg-gray-100 text-gray-600' }
+  const labels = { urgent: 'Khẩn', high: 'Cao', medium: 'TB', low: 'Thấp' }
+  return `<span class="${map[p] || ''} text-xs px-2 py-0.5 rounded-full font-medium">${labels[p] || p}</span>`
+}
+
+// ===== DASHBOARD =====
+async function renderDashboard() {
+  document.getElementById('pageContent').innerHTML = `<div class="flex items-center justify-center h-40"><div class="loading" style="border-color:#00A651;border-top-color:transparent"></div></div>`
+  try {
+    const r = await API.get('/api/dashboard/stats')
+    const d = r.data
+    const s = d.stats
+
+    // Update badges
+    if (s.expiring_contracts > 0) { document.getElementById('contractBadge').textContent = s.expiring_contracts; document.getElementById('contractBadge').classList.remove('hidden') }
+    if (s.urgent_reminders > 0) { document.getElementById('reminderBadge').textContent = s.urgent_reminders; document.getElementById('reminderBadge').classList.remove('hidden') }
+
+    document.getElementById('pageContent').innerHTML = `
+    <div class="space-y-6">
+      <!-- KPI Cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="kpi-card" style="background:linear-gradient(135deg,#00A651,#00c460)">
+          <div class="flex items-center justify-between mb-3">
+            <i class="fas fa-users text-2xl opacity-80"></i>
+            <span class="text-xs bg-white bg-opacity-20 px-2 py-1 rounded-full">Tổng nhân sự</span>
+          </div>
+          <div class="text-3xl font-bold">${s.total_employees}</div>
+          <div class="text-sm opacity-80 mt-1">
+            <span class="mr-2"><i class="fas fa-building mr-1"></i>BIM: ${s.bim_employees}</span>
+            <span><i class="fas fa-drafting-compass mr-1"></i>C3D: ${s.c3d_employees}</span>
+          </div>
+        </div>
+        <div class="kpi-card" style="background:linear-gradient(135deg,#0066CC,#4d94ff)">
+          <div class="flex items-center justify-between mb-3">
+            <i class="fas fa-file-contract text-2xl opacity-80"></i>
+            <span class="text-xs bg-white bg-opacity-20 px-2 py-1 rounded-full">Hợp đồng</span>
+          </div>
+          <div class="text-3xl font-bold">${s.active_contracts}</div>
+          <div class="text-sm opacity-80 mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>${s.expiring_contracts} sắp hết hạn (30 ngày)</div>
+        </div>
+        <div class="kpi-card" style="background:linear-gradient(135deg,#FF6B00,#ff9640)">
+          <div class="flex items-center justify-between mb-3">
+            <i class="fas fa-bell text-2xl opacity-80"></i>
+            <span class="text-xs bg-white bg-opacity-20 px-2 py-1 rounded-full">Nhắc nhở</span>
+          </div>
+          <div class="text-3xl font-bold">${s.urgent_reminders}</div>
+          <div class="text-sm opacity-80 mt-1">Cần xử lý trong 7 ngày</div>
+        </div>
+        <div class="kpi-card" style="background:linear-gradient(135deg,#7C3AED,#a855f7)">
+          <div class="flex items-center justify-between mb-3">
+            <i class="fas fa-calendar-minus text-2xl opacity-80"></i>
+            <span class="text-xs bg-white bg-opacity-20 px-2 py-1 rounded-full">Nghỉ phép</span>
+          </div>
+          <div class="text-3xl font-bold">${s.pending_leave}</div>
+          <div class="text-sm opacity-80 mt-1">Đơn chờ phê duyệt</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Hợp đồng sắp hết hạn -->
+        <div class="card p-5 lg:col-span-2">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-gray-800"><i class="fas fa-clock text-orange-500 mr-2"></i>Hợp đồng sắp hết hạn (30 ngày)</h3>
+            <button onclick="showPage('contracts')" class="text-sm text-blue-600 hover:underline">Xem tất cả</button>
+          </div>
+          ${d.expiring_contracts.length === 0 ? '<div class="text-center text-gray-400 py-6"><i class="fas fa-check-circle text-3xl mb-2 text-green-400"></i><p>Không có HĐ nào sắp hết hạn</p></div>' :
+          `<div class="space-y-2">
+            ${d.expiring_contracts.map(c => {
+              const days = daysDiff(c.end_date)
+              const urgency = days <= 7 ? 'urgency-urgent' : days <= 14 ? 'urgency-high' : 'urgency-medium'
+              return `<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg ${urgency}">
+                <div class="flex-1 min-w-0">
+                  <div class="font-medium text-sm truncate">${c.full_name} ${srcBadge(c.source_app)}</div>
+                  <div class="text-xs text-gray-500">${c.contract_number} · ${contractTypeName(c.contract_type)} · ${c.department || '—'}</div>
+                </div>
+                <div class="text-right flex-shrink-0">
+                  <div class="text-xs font-bold ${days <= 7 ? 'text-red-600' : days <= 14 ? 'text-orange-600' : 'text-yellow-600'}">${days} ngày</div>
+                  <div class="text-xs text-gray-500">${fmtDate(c.end_date)}</div>
+                </div>
+              </div>`
+            }).join('')}
+          </div>`}
+        </div>
+
+        <!-- Biểu đồ phân bổ -->
+        <div class="card p-5">
+          <h3 class="font-semibold text-gray-800 mb-4"><i class="fas fa-chart-pie text-blue-500 mr-2"></i>Nhân sự theo nguồn</h3>
+          <canvas id="sourceChart" height="200"></canvas>
+          <div class="mt-4 space-y-2">
+            ${d.by_department.slice(0,5).map(dept => `
+            <div class="flex items-center gap-2">
+              <div class="text-xs text-gray-600 flex-1 truncate">${dept.department || 'Chưa phân bổ'}</div>
+              <div class="flex-1 bg-gray-100 rounded-full h-2"><div class="h-2 rounded-full" style="width:${Math.min(100, dept.cnt / s.total_employees * 100)}%;background:#00A651"></div></div>
+              <div class="text-xs font-medium text-gray-700 w-6 text-right">${dept.cnt}</div>
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- Nhắc nhở khẩn -->
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-semibold text-gray-800"><i class="fas fa-bell text-red-500 mr-2"></i>Nhắc nhở cần xử lý</h3>
+          <button onclick="showPage('reminders')" class="text-sm text-blue-600 hover:underline">Xem tất cả</button>
+        </div>
+        ${d.reminders.length === 0 ? '<div class="text-center text-gray-400 py-6"><i class="fas fa-bell-slash text-3xl mb-2"></i><p>Không có nhắc nhở nào</p></div>' :
+        `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          ${d.reminders.map(r => `
+          <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg urgency-${r.priority}">
+            <div class="mt-1">${priorityBadge(r.priority)}</div>
+            <div class="flex-1 min-w-0">
+              <div class="font-medium text-sm">${r.title}</div>
+              <div class="text-xs text-gray-500">${r.full_name ? r.full_name + ' · ' : ''}${fmtDate(r.remind_date)}</div>
+            </div>
+            <button onclick="resolveReminder(${r.id})" class="text-green-600 hover:text-green-800 text-xs flex-shrink-0" title="Đánh dấu đã xử lý"><i class="fas fa-check"></i></button>
+          </div>`).join('')}
+        </div>`}
+      </div>
+    </div>`
+
+    // Chart
+    if (d.by_source.length > 0) {
+      const ctx = document.getElementById('sourceChart')?.getContext('2d')
+      if (ctx) {
+        if (dashboardCharts.source) dashboardCharts.source.destroy()
+        dashboardCharts.source = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: d.by_source.map(x => x.source_app),
+            datasets: [{ data: d.by_source.map(x => x.cnt), backgroundColor: ['#0066CC', '#00A651', '#FF6B00', '#7C3AED'], borderWidth: 0 }]
+          },
+          options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { padding: 15, font: { size: 12 } } } }, cutout: '65%' }
+        })
+      }
+    }
+  } catch (e) {
+    if (e.response?.status === 500 && e.response?.data?.error?.includes('no such table')) {
+      document.getElementById('pageContent').innerHTML = `<div class="card p-8 text-center">
+        <i class="fas fa-database text-5xl text-gray-300 mb-4"></i>
+        <h3 class="text-lg font-semibold text-gray-700 mb-2">Chưa khởi tạo hệ thống</h3>
+        <p class="text-gray-500 mb-4">Database chưa được tạo. Nhấn nút bên dưới để khởi tạo lần đầu.</p>
+        <button onclick="initSystem()" class="btn-primary"><i class="fas fa-play mr-2"></i>Khởi tạo hệ thống</button>
+      </div>`
+    } else {
+      showToast('Lỗi tải dashboard: ' + (e.response?.data?.error || e.message), 'error')
+    }
+  }
+}
+
+async function initSystem() {
+  try {
+    showToast('Đang khởi tạo...', 'info')
+    await API.post('/api/system/init')
+    showToast('Khởi tạo thành công!', 'success')
+    renderDashboard()
+  } catch (e) { showToast('Lỗi: ' + e.message, 'error') }
+}
+
+async function resolveReminder(id) {
+  try {
+    await API.put(`/api/reminders/${id}/resolve`)
+    showToast('Đã đánh dấu xử lý', 'success')
+    renderDashboard()
+  } catch(e) { showToast('Lỗi', 'error') }
+}
+
+// ===== EMPLOYEES =====
+let empPage = 1, empSearch = '', empSource = '', empDept = '', empActive = '1'
+async function renderEmployees() {
+  document.getElementById('pageContent').innerHTML = `
+  <div class="space-y-4">
+    <div class="card p-4">
+      <div class="flex flex-wrap gap-3 items-center">
+        <div class="flex-1 min-w-48 relative">
+          <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+          <input id="empSearch" type="text" placeholder="Tìm kiếm tên, mã NV, email..." class="pl-9" value="${empSearch}" oninput="empSearch=this.value;empPage=1;loadEmployees()">
+        </div>
+        <select id="empSource" class="w-36" onchange="empSource=this.value;empPage=1;loadEmployees()">
+          <option value="">Tất cả nguồn</option>
+          <option value="BIM" ${empSource==='BIM'?'selected':''}>BIM</option>
+          <option value="C3D" ${empSource==='C3D'?'selected':''}>C3D</option>
+          <option value="MANUAL" ${empSource==='MANUAL'?'selected':''}>Thủ công</option>
+        </select>
+        <select id="empActive" class="w-36" onchange="empActive=this.value;empPage=1;loadEmployees()">
+          <option value="1" ${empActive==='1'?'selected':''}>Đang làm việc</option>
+          <option value="0" ${empActive==='0'?'selected':''}>Đã nghỉ việc</option>
+          <option value="">Tất cả</option>
+        </select>
+        <button onclick="showAddEmployeeModal()" class="btn-primary flex items-center gap-2 whitespace-nowrap">
+          <i class="fas fa-plus"></i>Thêm thủ công
+        </button>
+      </div>
+    </div>
+    <div id="employeeTable"></div>
+    <div id="empPagination" class="flex justify-center gap-2 mt-4"></div>
+  </div>`
+  loadEmployees()
+}
+
+async function loadEmployees() {
+  document.getElementById('employeeTable').innerHTML = `<div class="flex justify-center py-10"><div class="loading" style="border-color:#00A651;border-top-color:transparent"></div></div>`
+  try {
+    const params = { page: empPage, limit: 25, search: empSearch, source: empSource, is_active: empActive }
+    const r = await API.get('/api/employees', { params })
+    const { data, total, page, limit } = r.data
+    const totalPages = Math.ceil(total / limit)
+
+    document.getElementById('employeeTable').innerHTML = `
+    <div class="card overflow-hidden">
+      <div class="px-4 py-3 border-b bg-gray-50 flex items-center justify-between">
+        <span class="text-sm text-gray-600">Tổng: <strong>${total}</strong> nhân viên</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead><tr class="bg-gray-50 border-b">
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Mã NV</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Họ tên</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Nguồn</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Phòng ban</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Chức danh</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Ngày vào</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">HĐ hiện tại</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Trạng thái</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Thao tác</th>
+          </tr></thead>
+          <tbody>
+            ${data.length === 0 ? '<tr><td colspan="9" class="text-center py-10 text-gray-400">Không có dữ liệu</td></tr>' :
+            data.map(e => {
+              const days = e.latest_contract_end ? daysDiff(e.latest_contract_end) : null
+              const contractInfo = e.active_contracts > 0
+                ? (days !== null ? (days <= 30 ? `<span class="text-orange-600 font-medium">${days} ngày</span>` : `<span class="text-green-600">Còn ${days} ngày</span>`) : `<span class="text-blue-600">Vô thời hạn</span>`)
+                : `<span class="text-red-400">Chưa có HĐ</span>`
+              return `<tr class="table-row border-b hover:bg-blue-50 cursor-pointer" onclick="showEmployeeDetail(${e.id})">
+                <td class="px-4 py-3 font-mono text-xs text-gray-600">${e.employee_code || '—'}</td>
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style="background:${e.source_app==='BIM'?'#0066CC':e.source_app==='C3D'?'#00A651':'#FF6B00'}">${e.full_name.charAt(0)}</div>
+                    <div>
+                      <div class="font-medium text-gray-800">${e.full_name}</div>
+                      <div class="text-xs text-gray-400">${e.email || e.username}</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-4 py-3">${srcBadge(e.source_app)}</td>
+                <td class="px-4 py-3 text-gray-600">${e.department || '—'}</td>
+                <td class="px-4 py-3 text-gray-600">${e.position || '—'}</td>
+                <td class="px-4 py-3 text-gray-600">${fmtDate(e.join_date)}</td>
+                <td class="px-4 py-3">${contractInfo}</td>
+                <td class="px-4 py-3"><span class="${e.is_active ? 'badge-active' : 'badge-inactive'}">${e.is_active ? 'Đang làm' : 'Đã nghỉ'}</span></td>
+                <td class="px-4 py-3 text-center">
+                  <button onclick="event.stopPropagation();showEmployeeDetail(${e.id})" class="text-blue-500 hover:text-blue-700 mx-1" title="Chi tiết"><i class="fas fa-eye"></i></button>
+                  <button onclick="event.stopPropagation();showEditEmployee(${e.id})" class="text-green-500 hover:text-green-700 mx-1" title="Chỉnh sửa"><i class="fas fa-edit"></i></button>
+                  <button onclick="event.stopPropagation();showAddContractModal(${e.id},'${e.full_name}')" class="text-purple-500 hover:text-purple-700 mx-1" title="Thêm HĐ"><i class="fas fa-file-contract"></i></button>
+                </td>
+              </tr>`
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`
+
+    // Pagination
+    if (totalPages > 1) {
+      let pages = ''
+      for (let i = 1; i <= totalPages; i++) {
+        pages += `<button onclick="empPage=${i};loadEmployees()" class="px-3 py-1 rounded text-sm ${i===page?'btn-primary':'bg-white border hover:bg-gray-50'}">${i}</button>`
+      }
+      document.getElementById('empPagination').innerHTML = pages
+    }
+  } catch(e) { showToast('Lỗi tải danh sách', 'error') }
+}
+
+async function showEmployeeDetail(id) {
+  try {
+    const r = await API.get(`/api/employees/${id}`)
+    const { employee: e, contracts, leaves, history } = r.data
+    showModal(`Chi tiết nhân viên: ${e.full_name}`, `
+    <div class="space-y-4">
+      <!-- Tabs -->
+      <div class="flex gap-2 border-b pb-2">
+        <button class="tab-btn active" onclick="switchTab('tab-info')">Thông tin cơ bản</button>
+        <button class="tab-btn" onclick="switchTab('tab-hcns')">Thông tin HCNS</button>
+        <button class="tab-btn" onclick="switchTab('tab-contracts')">Hợp đồng (${contracts.length})</button>
+        <button class="tab-btn" onclick="switchTab('tab-history')">Lịch sử</button>
+      </div>
+
+      <!-- Tab: Thông tin cơ bản -->
+      <div id="tab-info">
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-gray-50 p-3 rounded-lg">
+            <div class="text-xs text-gray-500 mb-1">Mã nhân viên</div>
+            <div class="font-medium">${e.employee_code || '—'}</div>
+          </div>
+          <div class="bg-gray-50 p-3 rounded-lg">
+            <div class="text-xs text-gray-500 mb-1">Nguồn dữ liệu</div>
+            <div>${srcBadge(e.source_app)}</div>
+          </div>
+          <div class="bg-gray-50 p-3 rounded-lg">
+            <div class="text-xs text-gray-500 mb-1">Họ và tên</div>
+            <div class="font-medium">${e.full_name}</div>
+          </div>
+          <div class="bg-gray-50 p-3 rounded-lg">
+            <div class="text-xs text-gray-500 mb-1">Username</div>
+            <div>${e.username}</div>
+          </div>
+          <div class="bg-gray-50 p-3 rounded-lg">
+            <div class="text-xs text-gray-500 mb-1">Email</div>
+            <div>${e.email || '—'}</div>
+          </div>
+          <div class="bg-gray-50 p-3 rounded-lg">
+            <div class="text-xs text-gray-500 mb-1">Điện thoại</div>
+            <div>${e.phone || '—'}</div>
+          </div>
+          <div class="bg-gray-50 p-3 rounded-lg">
+            <div class="text-xs text-gray-500 mb-1">Phòng ban</div>
+            <div>${e.department || '—'}</div>
+          </div>
+          <div class="bg-gray-50 p-3 rounded-lg">
+            <div class="text-xs text-gray-500 mb-1">Chức danh</div>
+            <div>${e.position || '—'}</div>
+          </div>
+          <div class="bg-gray-50 p-3 rounded-lg">
+            <div class="text-xs text-gray-500 mb-1">Lương tháng</div>
+            <div class="font-medium text-green-700">${fmtMoney(e.salary_monthly)}</div>
+          </div>
+          <div class="bg-gray-50 p-3 rounded-lg">
+            <div class="text-xs text-gray-500 mb-1">Trạng thái</div>
+            <span class="${e.is_active ? 'badge-active' : 'badge-inactive'}">${e.is_active ? 'Đang làm việc' : 'Đã nghỉ việc'}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: HCNS -->
+      <div id="tab-hcns" class="hidden">
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Ngày sinh</div><div>${fmtDate(e.date_of_birth)}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Giới tính</div><div>${e.gender || '—'}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">CMND/CCCD</div><div>${e.id_number || '—'}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Ngày vào công ty</div><div>${fmtDate(e.join_date)}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Thử việc</div><div>${fmtDate(e.probation_start)} → ${fmtDate(e.probation_end)}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Ngày ký HĐ chính thức</div><div>${fmtDate(e.official_start)}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Trình độ</div><div>${e.education || '—'}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Chuyên ngành</div><div>${e.major || '—'}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Số BHXH</div><div>${e.social_insurance || '—'}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Mã số thuế</div><div>${e.tax_code || '—'}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Tài khoản NH</div><div>${e.bank_account ? e.bank_account + ' - ' + (e.bank_name||'') : '—'}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Địa chỉ</div><div class="text-xs">${e.address || '—'}</div></div>
+        </div>
+        <div class="mt-3 bg-yellow-50 border border-yellow-200 p-3 rounded-lg text-sm text-yellow-800" style="${e.notes?'':'display:none'}">
+          <i class="fas fa-sticky-note mr-2"></i>${e.notes}
+        </div>
+      </div>
+
+      <!-- Tab: Contracts -->
+      <div id="tab-contracts" class="hidden">
+        <div class="flex justify-end mb-3">
+          <button onclick="closeModal();showAddContractModal(${e.id},'${e.full_name}')" class="btn-secondary text-sm"><i class="fas fa-plus mr-1"></i>Thêm HĐ</button>
+        </div>
+        ${contracts.length === 0 ? '<p class="text-center text-gray-400 py-6">Chưa có hợp đồng nào</p>' :
+        contracts.map(c => {
+          const days = c.end_date ? daysDiff(c.end_date) : null
+          const statusColor = c.status === 'active' ? 'border-green-500 bg-green-50' : 'border-gray-300 bg-gray-50'
+          return `<div class="border-l-4 p-4 rounded-r-lg mb-3 ${statusColor}">
+            <div class="flex items-start justify-between">
+              <div>
+                <div class="font-semibold">${c.contract_number}</div>
+                <div class="text-sm text-gray-600">${contractTypeName(c.contract_type)} · ${fmtMoney(c.salary)}</div>
+                <div class="text-xs text-gray-500 mt-1">${fmtDate(c.start_date)} → ${c.end_date ? fmtDate(c.end_date) : 'Vô thời hạn'}</div>
+              </div>
+              <div class="text-right">
+                <span class="badge-${c.status==='active'?'active':'inactive'}">${c.status==='active'?'Hiệu lực':'Hết hiệu lực'}</span>
+                ${days !== null ? `<div class="text-xs mt-1 ${days<=30?'text-orange-600 font-medium':'text-gray-500'}">${days > 0 ? 'Còn '+days+' ngày' : 'Đã hết hạn'}</div>` : ''}
+              </div>
+            </div>
+          </div>`}).join('')}
+      </div>
+
+      <!-- Tab: History -->
+      <div id="tab-history" class="hidden">
+        ${history.length === 0 ? '<p class="text-center text-gray-400 py-6">Chưa có lịch sử thay đổi</p>' :
+        history.map(h => `<div class="flex gap-3 text-sm border-b pb-3 mb-3">
+          <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0"><i class="fas fa-history text-blue-500 text-xs"></i></div>
+          <div>
+            <div class="text-gray-800"><strong>${h.field_changed}</strong>: <span class="text-red-500 line-through">${h.old_value||'—'}</span> → <span class="text-green-600">${h.new_value||'—'}</span></div>
+            <div class="text-xs text-gray-500">bởi ${h.changed_by_name} · ${dayjs(h.created_at).format('DD/MM/YYYY HH:mm')}</div>
+          </div>
+        </div>`).join('')}
+      </div>
+    </div>`,
+    `<button onclick="closeModal();showEditEmployee(${e.id})" class="btn-primary"><i class="fas fa-edit mr-2"></i>Chỉnh sửa HCNS</button>
+     <button onclick="closeModal()" class="px-4 py-2 bg-gray-100 rounded-lg text-gray-700 hover:bg-gray-200">Đóng</button>`)
+  } catch(e) { showToast('Lỗi tải chi tiết', 'error') }
+}
+
+function switchTab(tabId) {
+  document.querySelectorAll('[id^="tab-"]').forEach(t => t.classList.add('hidden'))
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'))
+  document.getElementById(tabId).classList.remove('hidden')
+  event.currentTarget.classList.add('active')
+}
+
+async function showEditEmployee(id) {
+  try {
+    const r = await API.get(`/api/employees/${id}`)
+    const e = r.data.employee
+    showModal(`Chỉnh sửa thông tin HCNS: ${e.full_name}`, `
+    <form id="editEmpForm" class="space-y-4">
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Mã nhân viên HCNS</label>
+          <input name="employee_code" value="${e.employee_code||''}"></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Chức danh</label>
+          <input name="position" value="${e.position||''}"></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Ngày sinh</label>
+          <input type="date" name="date_of_birth" value="${e.date_of_birth||''}"></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Giới tính</label>
+          <select name="gender"><option value="">—</option><option ${e.gender==='Nam'?'selected':''}>Nam</option><option ${e.gender==='Nữ'?'selected':''}>Nữ</option><option ${e.gender==='Khác'?'selected':''}>Khác</option></select></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">CMND/CCCD</label>
+          <input name="id_number" value="${e.id_number||''}"></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Số điện thoại</label>
+          <input name="phone" value="${e.phone||''}"></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Ngày vào công ty</label>
+          <input type="date" name="join_date" value="${e.join_date||''}"></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Bắt đầu thử việc</label>
+          <input type="date" name="probation_start" value="${e.probation_start||''}"></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Kết thúc thử việc</label>
+          <input type="date" name="probation_end" value="${e.probation_end||''}"></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Ngày ký HĐ chính thức</label>
+          <input type="date" name="official_start" value="${e.official_start||''}"></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Trình độ học vấn</label>
+          <select name="education"><option value="">—</option><option ${e.education==='Trung học'?'selected':''}>Trung học</option><option ${e.education==='Trung cấp'?'selected':''}>Trung cấp</option><option ${e.education==='Cao đẳng'?'selected':''}>Cao đẳng</option><option ${e.education==='Đại học'?'selected':''}>Đại học</option><option ${e.education==='Thạc sĩ'?'selected':''}>Thạc sĩ</option><option ${e.education==='Tiến sĩ'?'selected':''}>Tiến sĩ</option></select></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Chuyên ngành</label>
+          <input name="major" value="${e.major||''}"></div>
+      </div>
+      <hr>
+      <div class="text-xs font-semibold text-gray-500 uppercase">Bảo hiểm & Thuế</div>
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Số BHXH</label>
+          <input name="social_insurance" value="${e.social_insurance||''}"></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Số BHYT</label>
+          <input name="health_insurance" value="${e.health_insurance||''}"></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Mã số thuế</label>
+          <input name="tax_code" value="${e.tax_code||''}"></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Số CMND - Ngày cấp</label>
+          <div class="flex gap-2"><input name="id_issue_date" type="date" value="${e.id_issue_date||''}" placeholder="Ngày cấp">
+          <input name="id_issue_place" value="${e.id_issue_place||''}" placeholder="Nơi cấp"></div></div>
+      </div>
+      <hr>
+      <div class="text-xs font-semibold text-gray-500 uppercase">Tài khoản ngân hàng</div>
+      <div class="grid grid-cols-3 gap-4">
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Số tài khoản</label>
+          <input name="bank_account" value="${e.bank_account||''}"></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Tên ngân hàng</label>
+          <input name="bank_name" value="${e.bank_name||''}"></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Chi nhánh</label>
+          <input name="bank_branch" value="${e.bank_branch||''}"></div>
+      </div>
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Địa chỉ thường trú</label>
+        <input name="address" value="${e.address||''}"></div>
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Ghi chú HCNS</label>
+        <textarea name="notes" rows="2">${e.notes||''}</textarea></div>
+    </form>`,
+    `<button onclick="saveEmployee(${e.id})" class="btn-primary"><i class="fas fa-save mr-2"></i>Lưu thay đổi</button>
+     <button onclick="closeModal()" class="px-4 py-2 bg-gray-100 rounded-lg text-gray-700">Hủy</button>`)
+  } catch(err) { showToast('Lỗi', 'error') }
+}
+
+async function saveEmployee(id) {
+  const form = document.getElementById('editEmpForm')
+  const data = {}
+  new FormData(form).forEach((v, k) => { data[k] = v || null })
+  try {
+    await API.put(`/api/employees/${id}`, data)
+    showToast('Cập nhật thành công!', 'success')
+    closeModal()
+    loadEmployees()
+  } catch(e) { showToast('Lỗi lưu: ' + (e.response?.data?.error || e.message), 'error') }
+}
+
+function showAddEmployeeModal() {
+  showModal('Thêm nhân viên thủ công', `
+  <form id="addEmpForm" class="space-y-4">
+    <div class="grid grid-cols-2 gap-4">
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Họ và tên *</label><input name="full_name" required placeholder="Nguyễn Văn A"></div>
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Email</label><input name="email" type="email"></div>
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Điện thoại</label><input name="phone"></div>
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Phòng ban</label><input name="department"></div>
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Chức danh</label><input name="position"></div>
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Ngày vào công ty</label><input name="join_date" type="date"></div>
+    </div>
+    <div><label class="text-xs font-medium text-gray-700 block mb-1">Ghi chú</label><textarea name="notes" rows="2"></textarea></div>
+  </form>`,
+  `<button onclick="addEmployee()" class="btn-primary"><i class="fas fa-plus mr-2"></i>Thêm nhân viên</button>
+   <button onclick="closeModal()" class="px-4 py-2 bg-gray-100 rounded-lg text-gray-700">Hủy</button>`)
+}
+
+async function addEmployee() {
+  const form = document.getElementById('addEmpForm')
+  const data = { source_app: 'MANUAL' }
+  new FormData(form).forEach((v, k) => { data[k] = v || null })
+  if (!data.full_name) { showToast('Họ tên là bắt buộc', 'error'); return }
+  try {
+    await API.post('/api/employees', data)
+    showToast('Thêm nhân viên thành công!', 'success')
+    closeModal()
+    loadEmployees()
+  } catch(e) { showToast('Lỗi: ' + (e.response?.data?.error || e.message), 'error') }
+}
+
+// ===== CONTRACTS =====
+async function renderContracts() {
+  document.getElementById('pageContent').innerHTML = `
+  <div class="space-y-4">
+    <div class="card p-4 flex flex-wrap gap-3 items-center">
+      <select id="contractFilter" class="w-40" onchange="loadContracts()">
+        <option value="">Tất cả HĐ</option>
+        <option value="active">Đang hiệu lực</option>
+        <option value="expired">Đã hết hạn</option>
+      </select>
+      <select id="expiringFilter" class="w-48" onchange="loadContracts()">
+        <option value="">Tất cả thời hạn</option>
+        <option value="7">Hết hạn trong 7 ngày</option>
+        <option value="30">Hết hạn trong 30 ngày</option>
+        <option value="60">Hết hạn trong 60 ngày</option>
+        <option value="90">Hết hạn trong 90 ngày</option>
+      </select>
+    </div>
+    <div id="contractTable"></div>
+  </div>`
+  loadContracts()
+}
+
+async function loadContracts() {
+  const status = document.getElementById('contractFilter')?.value
+  const expiringDays = document.getElementById('expiringFilter')?.value
+  document.getElementById('contractTable').innerHTML = `<div class="flex justify-center py-10"><div class="loading" style="border-color:#00A651;border-top-color:transparent"></div></div>`
+  try {
+    const params = {}
+    if (status) params.status = status
+    if (expiringDays) params.expiring_days = expiringDays
+    const r = await API.get('/api/contracts', { params })
+    const contracts = r.data.data
+    document.getElementById('contractTable').innerHTML = `
+    <div class="card overflow-hidden">
+      <div class="px-4 py-3 border-b bg-gray-50"><span class="text-sm text-gray-600">Tổng: <strong>${contracts.length}</strong> hợp đồng</span></div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead><tr class="bg-gray-50 border-b">
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Số HĐ</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Nhân viên</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Loại HĐ</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Ngày bắt đầu</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Ngày kết thúc</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Còn lại</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Lương HĐ</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Trạng thái</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Thao tác</th>
+          </tr></thead>
+          <tbody>
+            ${contracts.length === 0 ? '<tr><td colspan="9" class="text-center py-10 text-gray-400">Không có dữ liệu</td></tr>' :
+            contracts.map(c => {
+              const days = c.end_date ? daysDiff(c.end_date) : null
+              const daysHtml = days === null ? '<span class="text-blue-600 text-xs">Vô thời hạn</span>'
+                : days < 0 ? `<span class="text-red-600 font-bold text-xs">Quá hạn ${Math.abs(days)} ngày</span>`
+                : days <= 7 ? `<span class="text-red-600 font-bold text-xs">⚠ ${days} ngày</span>`
+                : days <= 30 ? `<span class="text-orange-600 font-medium text-xs">${days} ngày</span>`
+                : `<span class="text-green-600 text-xs">${days} ngày</span>`
+              return `<tr class="table-row border-b">
+                <td class="px-4 py-3 font-mono text-xs">${c.contract_number}</td>
+                <td class="px-4 py-3">
+                  <div class="font-medium">${c.full_name}</div>
+                  <div class="text-xs text-gray-500">${c.department||'—'} ${srcBadge(c.source_app)}</div>
+                </td>
+                <td class="px-4 py-3"><span class="badge-warning">${contractTypeName(c.contract_type)}</span></td>
+                <td class="px-4 py-3 text-gray-600">${fmtDate(c.start_date)}</td>
+                <td class="px-4 py-3 text-gray-600">${c.end_date ? fmtDate(c.end_date) : '—'}</td>
+                <td class="px-4 py-3">${daysHtml}</td>
+                <td class="px-4 py-3 text-gray-700">${fmtMoney(c.salary)}</td>
+                <td class="px-4 py-3"><span class="${c.status==='active'?'badge-active':'badge-inactive'}">${c.status==='active'?'Hiệu lực':'Hết hiệu lực'}</span></td>
+                <td class="px-4 py-3 text-center">
+                  <button onclick="showEditContractModal(${c.id})" class="text-green-500 hover:text-green-700 mx-1" title="Sửa"><i class="fas fa-edit"></i></button>
+                  <button onclick="deleteContract(${c.id})" class="text-red-500 hover:text-red-700 mx-1" title="Xóa"><i class="fas fa-trash"></i></button>
+                </td>
+              </tr>`
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`
+  } catch(e) { showToast('Lỗi tải HĐ', 'error') }
+}
+
+function showAddContractModal(empId, empName) {
+  showModal(`Thêm hợp đồng: ${empName}`, `
+  <form id="addContractForm" class="space-y-4">
+    <input type="hidden" name="employee_id" value="${empId}">
+    <div class="grid grid-cols-2 gap-4">
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Số hợp đồng *</label><input name="contract_number" required placeholder="HĐ-2024-001"></div>
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Loại hợp đồng *</label>
+        <select name="contract_type">
+          <option value="trial">Thử việc</option>
+          <option value="fixed_term" selected>Có thời hạn</option>
+          <option value="indefinite">Vô thời hạn</option>
+          <option value="seasonal">Thời vụ</option>
+        </select></div>
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Ngày bắt đầu *</label><input type="date" name="start_date" required></div>
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Ngày kết thúc</label><input type="date" name="end_date"></div>
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Mức lương (VNĐ)</label><input type="number" name="salary" placeholder="0"></div>
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Ngày ký</label><input type="date" name="signed_date"></div>
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Chức vụ trong HĐ</label><input name="position"></div>
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Nhắc trước (ngày)</label><input type="number" name="renewal_reminder_days" value="30"></div>
+    </div>
+    <div><label class="text-xs font-medium text-gray-700 block mb-1">Ghi chú</label><textarea name="notes" rows="2"></textarea></div>
+  </form>`,
+  `<button onclick="saveNewContract()" class="btn-primary"><i class="fas fa-save mr-2"></i>Lưu hợp đồng</button>
+   <button onclick="closeModal()" class="px-4 py-2 bg-gray-100 rounded-lg text-gray-700">Hủy</button>`)
+}
+
+async function saveNewContract() {
+  const form = document.getElementById('addContractForm')
+  const data = {}
+  new FormData(form).forEach((v, k) => { data[k] = v || null })
+  if (!data.contract_number || !data.contract_type || !data.start_date) { showToast('Thiếu thông tin bắt buộc', 'error'); return }
+  try {
+    await API.post('/api/contracts', data)
+    showToast('Thêm hợp đồng thành công!', 'success')
+    closeModal()
+    if (document.getElementById('contractTable')) loadContracts()
+  } catch(e) { showToast('Lỗi: ' + (e.response?.data?.error || e.message), 'error') }
+}
+
+async function showEditContractModal(id) {
+  try {
+    const r = await API.get('/api/contracts')
+    const c = r.data.data.find(x => x.id === id)
+    if (!c) return showToast('Không tìm thấy HĐ', 'error')
+    showModal(`Chỉnh sửa hợp đồng: ${c.contract_number}`, `
+    <form id="editContractForm" class="space-y-4">
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Loại HĐ</label>
+          <select name="contract_type"><option value="trial" ${c.contract_type==='trial'?'selected':''}>Thử việc</option><option value="fixed_term" ${c.contract_type==='fixed_term'?'selected':''}>Có thời hạn</option><option value="indefinite" ${c.contract_type==='indefinite'?'selected':''}>Vô thời hạn</option></select></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Trạng thái</label>
+          <select name="status"><option value="active" ${c.status==='active'?'selected':''}>Hiệu lực</option><option value="expired" ${c.status==='expired'?'selected':''}>Hết hiệu lực</option><option value="terminated" ${c.status==='terminated'?'selected':''}>Chấm dứt</option><option value="renewed" ${c.status==='renewed'?'selected':''}>Đã gia hạn</option></select></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Ngày bắt đầu</label><input type="date" name="start_date" value="${c.start_date||''}"></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Ngày kết thúc</label><input type="date" name="end_date" value="${c.end_date||''}"></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Lương (VNĐ)</label><input type="number" name="salary" value="${c.salary||0}"></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Nhắc trước (ngày)</label><input type="number" name="renewal_reminder_days" value="${c.renewal_reminder_days||30}"></div>
+      </div>
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Ghi chú</label><textarea name="notes" rows="2">${c.notes||''}</textarea></div>
+    </form>`,
+    `<button onclick="updateContract(${c.id})" class="btn-primary"><i class="fas fa-save mr-2"></i>Lưu</button>
+     <button onclick="closeModal()" class="px-4 py-2 bg-gray-100 rounded-lg text-gray-700">Hủy</button>`)
+  } catch(err) { showToast('Lỗi', 'error') }
+}
+
+async function updateContract(id) {
+  const form = document.getElementById('editContractForm')
+  const data = {}
+  new FormData(form).forEach((v, k) => { data[k] = v || null })
+  try {
+    await API.put(`/api/contracts/${id}`, data)
+    showToast('Cập nhật thành công!', 'success')
+    closeModal()
+    loadContracts()
+  } catch(e) { showToast('Lỗi', 'error') }
+}
+
+async function deleteContract(id) {
+  if (!confirm('Xác nhận xóa hợp đồng này?')) return
+  try {
+    await API.delete(`/api/contracts/${id}`)
+    showToast('Đã xóa hợp đồng', 'success')
+    loadContracts()
+  } catch(e) { showToast('Lỗi xóa', 'error') }
+}
+
+// ===== LEAVES =====
+async function renderLeaves() {
+  document.getElementById('pageContent').innerHTML = `
+  <div class="space-y-4">
+    <div class="card p-4 flex gap-3 items-center">
+      <select id="leaveFilter" class="w-40" onchange="loadLeaves()">
+        <option value="">Tất cả</option>
+        <option value="pending">Chờ duyệt</option>
+        <option value="approved">Đã duyệt</option>
+        <option value="rejected">Từ chối</option>
+      </select>
+      <button onclick="showAddLeaveModal()" class="btn-primary flex items-center gap-2">
+        <i class="fas fa-plus"></i>Thêm đơn nghỉ
+      </button>
+    </div>
+    <div id="leaveTable"></div>
+  </div>`
+  loadLeaves()
+}
+
+async function loadLeaves() {
+  const status = document.getElementById('leaveFilter')?.value
+  document.getElementById('leaveTable').innerHTML = `<div class="flex justify-center py-10"><div class="loading" style="border-color:#00A651;border-top-color:transparent"></div></div>`
+  try {
+    const params = status ? { status } : {}
+    const r = await API.get('/api/leaves', { params })
+    const leaves = r.data.data
+    const typeNames = { annual: 'Nghỉ phép năm', sick: 'Nghỉ ốm đau', unpaid: 'Nghỉ không lương', maternity: 'Thai sản', other: 'Khác' }
+    const statusBadge = { pending: 'bg-yellow-100 text-yellow-700', approved: 'bg-green-100 text-green-700', rejected: 'bg-red-100 text-red-700' }
+    const statusLabel = { pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Từ chối' }
+    document.getElementById('leaveTable').innerHTML = `
+    <div class="card overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead><tr class="bg-gray-50 border-b">
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Nhân viên</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Loại nghỉ</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Từ ngày</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Đến ngày</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Số ngày</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Lý do</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Trạng thái</th>
+            <th class="px-4 py-3 text-center">Thao tác</th>
+          </tr></thead>
+          <tbody>
+            ${leaves.length === 0 ? '<tr><td colspan="8" class="text-center py-10 text-gray-400">Không có dữ liệu</td></tr>' :
+            leaves.map(l => `<tr class="table-row border-b">
+              <td class="px-4 py-3"><div class="font-medium">${l.full_name}</div><div class="text-xs text-gray-500">${l.department||'—'} ${srcBadge(l.source_app)}</div></td>
+              <td class="px-4 py-3"><span class="badge-warning">${typeNames[l.leave_type]||l.leave_type}</span></td>
+              <td class="px-4 py-3">${fmtDate(l.start_date)}</td>
+              <td class="px-4 py-3">${fmtDate(l.end_date)}</td>
+              <td class="px-4 py-3 font-medium">${l.days} ngày</td>
+              <td class="px-4 py-3 text-gray-600 text-xs">${l.reason||'—'}</td>
+              <td class="px-4 py-3"><span class="${statusBadge[l.status]||''} text-xs px-2 py-1 rounded-full">${statusLabel[l.status]||l.status}</span></td>
+              <td class="px-4 py-3 text-center">
+                ${l.status==='pending'?`<button onclick="approveLeave(${l.id},'approved')" class="text-green-500 hover:text-green-700 mr-2" title="Duyệt"><i class="fas fa-check"></i></button>
+                <button onclick="approveLeave(${l.id},'rejected')" class="text-red-500 hover:text-red-700" title="Từ chối"><i class="fas fa-times"></i></button>`:'—'}
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`
+  } catch(e) { showToast('Lỗi', 'error') }
+}
+
+function showAddLeaveModal() {
+  showModal('Thêm đơn nghỉ phép', `
+  <form id="addLeaveForm" class="space-y-4">
+    <div><label class="text-xs font-medium text-gray-700 block mb-1">ID Nhân viên *</label><input name="employee_id" type="number" required placeholder="Nhập ID nhân viên"></div>
+    <div class="grid grid-cols-2 gap-4">
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Loại nghỉ</label>
+        <select name="leave_type"><option value="annual">Nghỉ phép năm</option><option value="sick">Nghỉ ốm đau</option><option value="unpaid">Không lương</option><option value="maternity">Thai sản</option><option value="other">Khác</option></select></div>
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Số ngày</label><input name="days" type="number" step="0.5" value="1"></div>
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Từ ngày *</label><input name="start_date" type="date" required></div>
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Đến ngày *</label><input name="end_date" type="date" required></div>
+    </div>
+    <div><label class="text-xs font-medium text-gray-700 block mb-1">Lý do</label><textarea name="reason" rows="2"></textarea></div>
+  </form>`,
+  `<button onclick="addLeave()" class="btn-primary"><i class="fas fa-save mr-2"></i>Lưu</button>
+   <button onclick="closeModal()" class="px-4 py-2 bg-gray-100 rounded-lg text-gray-700">Hủy</button>`)
+}
+
+async function addLeave() {
+  const form = document.getElementById('addLeaveForm')
+  const data = {}
+  new FormData(form).forEach((v, k) => { data[k] = v || null })
+  try {
+    await API.post('/api/leaves', data)
+    showToast('Thêm đơn nghỉ thành công!', 'success')
+    closeModal()
+    loadLeaves()
+  } catch(e) { showToast('Lỗi: ' + (e.response?.data?.error || e.message), 'error') }
+}
+
+async function approveLeave(id, status) {
+  try {
+    await API.put(`/api/leaves/${id}`, { status })
+    showToast(status === 'approved' ? 'Đã phê duyệt' : 'Đã từ chối', 'success')
+    loadLeaves()
+  } catch(e) { showToast('Lỗi', 'error') }
+}
+
+// ===== REMINDERS =====
+async function renderReminders() {
+  document.getElementById('pageContent').innerHTML = `
+  <div class="space-y-4">
+    <div class="card p-4 flex gap-3 items-center">
+      <select id="reminderDays" class="w-48" onchange="loadReminders()">
+        <option value="7">7 ngày tới</option>
+        <option value="30" selected>30 ngày tới</option>
+        <option value="60">60 ngày tới</option>
+        <option value="90">90 ngày tới</option>
+        <option value="365">Tất cả</option>
+      </select>
+      <label class="flex items-center gap-2 text-sm cursor-pointer">
+        <input type="checkbox" id="showResolved" onchange="loadReminders()">
+        <span>Hiện đã xử lý</span>
+      </label>
+      <button onclick="showAddReminderModal()" class="btn-primary flex items-center gap-2 ml-auto">
+        <i class="fas fa-plus"></i>Thêm nhắc nhở
+      </button>
+    </div>
+    <div id="reminderList"></div>
+  </div>`
+  loadReminders()
+}
+
+async function loadReminders() {
+  const days = document.getElementById('reminderDays')?.value || '30'
+  const isResolved = document.getElementById('showResolved')?.checked ? '1' : '0'
+  document.getElementById('reminderList').innerHTML = `<div class="flex justify-center py-10"><div class="loading" style="border-color:#00A651;border-top-color:transparent"></div></div>`
+  try {
+    const r = await API.get('/api/reminders', { params: { days, is_resolved: isResolved } })
+    const reminders = r.data.data
+    const typeIcons = { contract_expiry: 'fa-file-contract text-orange-500', probation_end: 'fa-user-clock text-blue-500', birthday: 'fa-birthday-cake text-pink-500', insurance: 'fa-shield-alt text-green-500', other: 'fa-bell text-gray-500' }
+    const typeNames = { contract_expiry: 'HĐ hết hạn', probation_end: 'Hết thử việc', birthday: 'Sinh nhật', insurance: 'Bảo hiểm', other: 'Khác' }
+    document.getElementById('reminderList').innerHTML = reminders.length === 0
+      ? '<div class="card p-10 text-center text-gray-400"><i class="fas fa-bell-slash text-4xl mb-3"></i><p>Không có nhắc nhở nào</p></div>'
+      : `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        ${reminders.map(r => `
+        <div class="card p-4 urgency-${r.priority} ${r.is_resolved ? 'opacity-60' : ''}">
+          <div class="flex items-start gap-3">
+            <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <i class="fas ${typeIcons[r.reminder_type]||'fa-bell text-gray-500'}"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                ${priorityBadge(r.priority)}
+                <span class="text-xs text-gray-400">${typeNames[r.reminder_type]||r.reminder_type}</span>
+              </div>
+              <div class="font-medium text-gray-800 text-sm">${r.title}</div>
+              <div class="text-xs text-gray-500 mt-1">${r.description||''}</div>
+              <div class="flex items-center gap-3 mt-2">
+                <span class="text-xs text-gray-600"><i class="far fa-calendar mr-1"></i>${fmtDate(r.remind_date)}</span>
+                ${r.days_remaining !== null ? `<span class="text-xs font-medium ${r.days_remaining < 0 ? 'text-red-600' : r.days_remaining <= 7 ? 'text-orange-600' : 'text-gray-600'}">${r.days_remaining < 0 ? 'Trễ ' + Math.abs(r.days_remaining) + ' ngày' : r.days_remaining === 0 ? 'Hôm nay' : 'Còn ' + r.days_remaining + ' ngày'}</span>` : ''}
+                ${r.full_name ? `<span class="text-xs text-gray-500">${srcBadge(r.source_app)} ${r.full_name}</span>` : ''}
+              </div>
+            </div>
+            <div class="flex flex-col gap-2">
+              ${!r.is_resolved ? `<button onclick="resolveReminder(${r.id});renderReminders()" class="text-green-600 hover:text-green-800 text-sm" title="Đánh dấu xử lý"><i class="fas fa-check-circle"></i></button>` : '<i class="fas fa-check-circle text-green-400"></i>'}
+              <button onclick="deleteReminder(${r.id})" class="text-red-400 hover:text-red-600 text-sm" title="Xóa"><i class="fas fa-trash"></i></button>
+            </div>
+          </div>
+        </div>`).join('')}
+      </div>`
+  } catch(e) { showToast('Lỗi tải nhắc nhở', 'error') }
+}
+
+function showAddReminderModal() {
+  showModal('Thêm nhắc nhở HCNS', `
+  <form id="addReminderForm" class="space-y-4">
+    <div class="grid grid-cols-2 gap-4">
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Tiêu đề *</label><input name="title" required></div>
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Loại nhắc nhở</label>
+        <select name="reminder_type"><option value="contract_expiry">HĐ hết hạn</option><option value="probation_end">Hết thử việc</option><option value="birthday">Sinh nhật</option><option value="insurance">Bảo hiểm</option><option value="other" selected>Khác</option></select></div>
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Ngày nhắc *</label><input type="date" name="remind_date" required></div>
+      <div><label class="text-xs font-medium text-gray-700 block mb-1">Mức độ</label>
+        <select name="priority"><option value="low">Thấp</option><option value="medium" selected>Trung bình</option><option value="high">Cao</option><option value="urgent">Khẩn</option></select></div>
+      <div class="col-span-2"><label class="text-xs font-medium text-gray-700 block mb-1">ID Nhân viên (nếu có)</label><input name="employee_id" type="number"></div>
+    </div>
+    <div><label class="text-xs font-medium text-gray-700 block mb-1">Mô tả chi tiết</label><textarea name="description" rows="3"></textarea></div>
+  </form>`,
+  `<button onclick="addReminder()" class="btn-primary"><i class="fas fa-save mr-2"></i>Lưu</button>
+   <button onclick="closeModal()" class="px-4 py-2 bg-gray-100 rounded-lg text-gray-700">Hủy</button>`)
+}
+
+async function addReminder() {
+  const form = document.getElementById('addReminderForm')
+  const data = {}
+  new FormData(form).forEach((v, k) => { data[k] = v || null })
+  try {
+    await API.post('/api/reminders', data)
+    showToast('Thêm nhắc nhở thành công!', 'success')
+    closeModal()
+    loadReminders()
+  } catch(e) { showToast('Lỗi: ' + (e.response?.data?.error || e.message), 'error') }
+}
+
+async function deleteReminder(id) {
+  if (!confirm('Xóa nhắc nhở này?')) return
+  try {
+    await API.delete(`/api/reminders/${id}`)
+    showToast('Đã xóa', 'success')
+    loadReminders()
+  } catch(e) { showToast('Lỗi', 'error') }
+}
+
+// ===== REPORTS =====
+async function renderReports() {
+  document.getElementById('pageContent').innerHTML = `<div class="flex justify-center py-10"><div class="loading" style="border-color:#00A651;border-top-color:transparent"></div></div>`
+  try {
+    const r = await API.get('/api/reports/employees')
+    const { no_formal_contract, probation_ending, missing_info } = r.data
+    document.getElementById('pageContent').innerHTML = `
+    <div class="space-y-6">
+      <!-- Nhân viên chưa có HĐ chính thức -->
+      <div class="card p-5">
+        <h3 class="font-semibold text-gray-800 mb-4"><i class="fas fa-exclamation-triangle text-red-500 mr-2"></i>Nhân viên chưa có HĐ chính thức (${no_formal_contract.length})</h3>
+        ${no_formal_contract.length === 0 ? '<p class="text-center text-green-600 py-4"><i class="fas fa-check-circle mr-2"></i>Tất cả đều có HĐ chính thức</p>' :
+        `<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="bg-gray-50 border-b">
+          <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500">Nhân viên</th>
+          <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500">Nguồn</th>
+          <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500">Phòng ban</th>
+          <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500">Ngày vào</th>
+          <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500">Thao tác</th>
+        </tr></thead><tbody>
+          ${no_formal_contract.map(e => `<tr class="border-b table-row">
+            <td class="px-4 py-2 font-medium">${e.full_name}</td>
+            <td class="px-4 py-2">${srcBadge(e.source_app)}</td>
+            <td class="px-4 py-2 text-gray-600">${e.department||'—'}</td>
+            <td class="px-4 py-2 text-gray-600">${fmtDate(e.join_date)}</td>
+            <td class="px-4 py-2 text-center"><button onclick="showAddContractModal(${e.id},'${e.full_name}')" class="text-blue-600 text-xs hover:underline">Thêm HĐ</button></td>
+          </tr>`).join('')}
+        </tbody></table></div>`}
+      </div>
+
+      <!-- Sắp hết thử việc -->
+      <div class="card p-5">
+        <h3 class="font-semibold text-gray-800 mb-4"><i class="fas fa-user-clock text-orange-500 mr-2"></i>Sắp kết thúc thử việc (14 ngày tới) (${probation_ending.length})</h3>
+        ${probation_ending.length === 0 ? '<p class="text-center text-gray-400 py-4">Không có</p>' :
+        `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          ${probation_ending.map(e => `<div class="flex items-center gap-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+            <div class="w-10 h-10 bg-orange-200 rounded-full flex items-center justify-center text-orange-700 font-bold">${e.full_name.charAt(0)}</div>
+            <div class="flex-1">
+              <div class="font-medium text-sm">${e.full_name} ${srcBadge(e.source_app)}</div>
+              <div class="text-xs text-gray-600">Hết TV: ${fmtDate(e.probation_end)} · <strong class="text-orange-700">Còn ${daysDiff(e.probation_end)} ngày</strong></div>
+            </div>
+            <button onclick="showAddContractModal(${e.id},'${e.full_name}')" class="btn-primary text-xs py-1 px-2">Ký HĐ</button>
+          </div>`).join('')}
+        </div>`}
+      </div>
+
+      <!-- Thiếu thông tin -->
+      <div class="card p-5">
+        <h3 class="font-semibold text-gray-800 mb-4"><i class="fas fa-clipboard-list text-blue-500 mr-2"></i>Nhân viên thiếu thông tin HCNS (${missing_info.length})</h3>
+        ${missing_info.length === 0 ? '<p class="text-center text-green-600 py-4"><i class="fas fa-check-circle mr-2"></i>Tất cả đã có đủ thông tin</p>' :
+        `<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="bg-gray-50 border-b">
+          <th class="px-4 py-2 text-left text-xs text-gray-500">Nhân viên</th>
+          <th class="px-4 py-2 text-left text-xs text-gray-500">Nguồn</th>
+          <th class="px-4 py-2 text-center text-xs text-gray-500">Ngày sinh</th>
+          <th class="px-4 py-2 text-center text-xs text-gray-500">CMND</th>
+          <th class="px-4 py-2 text-center text-xs text-gray-500">MST</th>
+          <th class="px-4 py-2 text-center text-xs text-gray-500">BHXH</th>
+          <th class="px-4 py-2 text-center text-xs text-gray-500">Ngân hàng</th>
+          <th class="px-4 py-2 text-center text-xs text-gray-500">Thao tác</th>
+        </tr></thead><tbody>
+          ${missing_info.map(e => {
+            const miss = v => v ? '<i class="fas fa-check text-green-500"></i>' : '<i class="fas fa-times text-red-400"></i>'
+            return `<tr class="border-b table-row">
+              <td class="px-4 py-2 font-medium">${e.full_name}</td>
+              <td class="px-4 py-2">${srcBadge(e.source_app)}</td>
+              <td class="px-4 py-2 text-center">${miss(!e.no_dob)}</td>
+              <td class="px-4 py-2 text-center">${miss(!e.no_id)}</td>
+              <td class="px-4 py-2 text-center">${miss(!e.no_tax)}</td>
+              <td class="px-4 py-2 text-center">${miss(!e.no_si)}</td>
+              <td class="px-4 py-2 text-center">${miss(!e.no_bank)}</td>
+              <td class="px-4 py-2 text-center"><button onclick="showEditEmployee(${e.id})" class="text-blue-600 text-xs hover:underline">Bổ sung</button></td>
+            </tr>`}).join('')}
+        </tbody></table></div>`}
+      </div>
+    </div>`
+  } catch(e) { showToast('Lỗi tải báo cáo', 'error') }
+}
+
+// ===== SYNC =====
+async function renderSync() {
+  document.getElementById('pageContent').innerHTML = `<div class="flex justify-center py-10"><div class="loading" style="border-color:#00A651;border-top-color:transparent"></div></div>`
+  try {
+    const r = await API.get('/api/data-sources')
+    const sources = r.data.data
+    document.getElementById('pageContent').innerHTML = `
+    <div class="space-y-6">
+      <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
+        <i class="fas fa-info-circle mr-2"></i>
+        <strong>Hướng dẫn đồng bộ:</strong> Nhập URL của app BIM/C3D và token admin, sau đó bấm "Đồng bộ ngay". Hệ thống sẽ kéo toàn bộ danh sách nhân viên về HCNS.
+      </div>
+      ${sources.map(s => `
+      <div class="card p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg ${s.app_name==='BIM'?'bg-blue-600':'bg-green-600'}">${s.app_name}</div>
+            <div>
+              <div class="font-semibold text-gray-800">${s.app_name} Project Management</div>
+              <div class="flex items-center gap-2 mt-1">
+                <span class="text-xs px-2 py-0.5 rounded-full ${s.sync_status==='success'?'bg-green-100 text-green-700':s.sync_status==='error'?'bg-red-100 text-red-700':'bg-gray-100 text-gray-600'}">${s.sync_status==='success'?'✓ Đồng bộ thành công':s.sync_status==='error'?'✗ Lỗi':'Chưa đồng bộ'}</span>
+                ${s.last_sync ? `<span class="text-xs text-gray-400">Lần cuối: ${dayjs(s.last_sync).format('DD/MM/YYYY HH:mm')}</span>` : ''}
+              </div>
+              ${s.sync_message ? `<div class="text-xs text-gray-500 mt-1">${s.sync_message}</div>` : ''}
+            </div>
+          </div>
+          <button onclick="syncSource('${s.app_name}',${s.id})" id="syncBtn_${s.app_name}" class="${s.app_name==='BIM'?'bg-blue-600':'bg-green-600'} text-white px-4 py-2 rounded-lg text-sm hover:opacity-90 flex items-center gap-2">
+            <i class="fas fa-sync-alt" id="syncIcon_${s.app_name}"></i>Đồng bộ ngay
+          </button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs font-medium text-gray-700 block mb-1">URL App ${s.app_name}</label>
+            <input id="url_${s.id}" type="url" value="${s.api_url||''}" placeholder="https://your-app.pages.dev">
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-700 block mb-1">Admin Token (tùy chọn)</label>
+            <input id="token_${s.id}" type="password" value="${s.api_token||''}" placeholder="Để trống nếu dùng admin/Admin@123">
+          </div>
+        </div>
+        <div class="mt-3 flex gap-2">
+          <button onclick="updateSource(${s.id})" class="text-sm text-blue-600 hover:underline"><i class="fas fa-save mr-1"></i>Lưu cấu hình</button>
+          <span class="text-gray-300">|</span>
+          <span class="text-xs text-gray-500">Mặc định đăng nhập với admin / Admin@123</span>
+        </div>
+      </div>`).join('')}
+    </div>`
+  } catch(e) { showToast('Lỗi tải cấu hình', 'error') }
+}
+
+async function updateSource(id) {
+  const url = document.getElementById(`url_${id}`).value
+  const token = document.getElementById(`token_${id}`).value
+  try {
+    await API.put(`/api/data-sources/${id}`, { api_url: url, api_token: token || null, is_active: 1 })
+    showToast('Lưu cấu hình thành công!', 'success')
+  } catch(e) { showToast('Lỗi', 'error') }
+}
+
+async function syncSource(appName, sourceId) {
+  const btn = document.getElementById(`syncBtn_${appName}`)
+  const icon = document.getElementById(`syncIcon_${appName}`)
+  btn.disabled = true
+  icon.classList.add('fa-spin')
+
+  // Save config first
+  await updateSource(sourceId)
+
+  try {
+    const r = await API.post(`/api/sync/${appName}`)
+    showToast(`Đồng bộ ${appName} thành công: +${r.data.added} mới, ~${r.data.updated} cập nhật`, 'success')
+    renderSync()
+  } catch(e) {
+    showToast('Lỗi đồng bộ: ' + (e.response?.data?.error || e.message), 'error')
+    renderSync()
+  } finally {
+    btn.disabled = false
+    icon.classList.remove('fa-spin')
+  }
+}
+
+// ===== SETTINGS =====
+async function renderSettings() {
+  document.getElementById('pageContent').innerHTML = `
+  <div class="space-y-6 max-w-2xl">
+    <div class="card p-6">
+      <h3 class="font-semibold text-gray-800 mb-4"><i class="fas fa-key text-blue-500 mr-2"></i>Đổi mật khẩu</h3>
+      <div class="space-y-4">
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Mật khẩu hiện tại</label><input type="password" id="oldPass"></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Mật khẩu mới</label><input type="password" id="newPass"></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Xác nhận mật khẩu mới</label><input type="password" id="confirmPass"></div>
+        <button onclick="changePassword()" class="btn-primary"><i class="fas fa-save mr-2"></i>Đổi mật khẩu</button>
+      </div>
+    </div>
+    ${currentUser?.role === 'hr_admin' ? `
+    <div class="card p-6">
+      <h3 class="font-semibold text-gray-800 mb-4"><i class="fas fa-users-cog text-purple-500 mr-2"></i>Quản lý tài khoản HCNS</h3>
+      <div id="hrUsersList"></div>
+      <button onclick="showAddHRUserModal()" class="btn-primary mt-4"><i class="fas fa-plus mr-2"></i>Thêm tài khoản</button>
+    </div>
+    <div class="card p-6">
+      <h3 class="font-semibold text-gray-800 mb-4"><i class="fas fa-database text-red-500 mr-2"></i>Khởi tạo lại hệ thống</h3>
+      <p class="text-sm text-gray-600 mb-4">Tạo lại toàn bộ cấu trúc database và tài khoản mặc định. Dữ liệu hiện tại sẽ KHÔNG bị xóa.</p>
+      <button onclick="initSystem()" class="btn-danger"><i class="fas fa-sync mr-2"></i>Khởi tạo hệ thống</button>
+    </div>` : ''}
+  </div>`
+
+  if (currentUser?.role === 'hr_admin') loadHRUsers()
+}
+
+async function changePassword() {
+  const oldPass = document.getElementById('oldPass').value
+  const newPass = document.getElementById('newPass').value
+  const confirmPass = document.getElementById('confirmPass').value
+  if (!oldPass || !newPass) { showToast('Vui lòng nhập đầy đủ', 'error'); return }
+  if (newPass !== confirmPass) { showToast('Mật khẩu xác nhận không khớp', 'error'); return }
+  if (newPass.length < 6) { showToast('Mật khẩu mới ít nhất 6 ký tự', 'error'); return }
+  try {
+    await API.post('/api/auth/change-password', { old_password: oldPass, new_password: newPass })
+    showToast('Đổi mật khẩu thành công!', 'success')
+    document.getElementById('oldPass').value = ''
+    document.getElementById('newPass').value = ''
+    document.getElementById('confirmPass').value = ''
+  } catch(e) { showToast(e.response?.data?.error || 'Lỗi đổi mật khẩu', 'error') }
+}
+
+async function loadHRUsers() {
+  try {
+    const r = await API.get('/api/hr-users')
+    document.getElementById('hrUsersList').innerHTML = `
+    <div class="space-y-2">
+      ${r.data.data.map(u => `<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+        <div class="w-8 h-8 rounded-full ${u.role==='hr_admin'?'bg-purple-500':'bg-blue-500'} flex items-center justify-center text-white text-sm font-bold">${u.full_name.charAt(0)}</div>
+        <div class="flex-1">
+          <div class="font-medium text-sm">${u.full_name}</div>
+          <div class="text-xs text-gray-500">${u.username} · ${u.role==='hr_admin'?'Quản trị HCNS':'Nhân viên HCNS'}</div>
+        </div>
+        <span class="${u.is_active?'badge-active':'badge-inactive'}">${u.is_active?'Hoạt động':'Tạm khóa'}</span>
+      </div>`).join('')}
+    </div>`
+  } catch(e) {}
+}
+
+function showAddHRUserModal() {
+  showModal('Thêm tài khoản HCNS', `
+  <form id="addHRForm" class="space-y-4">
+    <div class="grid grid-cols-2 gap-4">
+      <div><label class="text-xs font-medium block mb-1">Tên đăng nhập *</label><input name="username" required></div>
+      <div><label class="text-xs font-medium block mb-1">Mật khẩu *</label><input name="password" type="password" required></div>
+      <div><label class="text-xs font-medium block mb-1">Họ và tên *</label><input name="full_name" required></div>
+      <div><label class="text-xs font-medium block mb-1">Email</label><input name="email" type="email"></div>
+      <div class="col-span-2"><label class="text-xs font-medium block mb-1">Phân quyền</label>
+        <select name="role"><option value="hr_staff">Nhân viên HCNS</option><option value="hr_admin">Quản trị HCNS</option></select></div>
+    </div>
+  </form>`,
+  `<button onclick="addHRUser()" class="btn-primary"><i class="fas fa-save mr-2"></i>Tạo tài khoản</button>
+   <button onclick="closeModal()" class="px-4 py-2 bg-gray-100 rounded-lg text-gray-700">Hủy</button>`)
+}
+
+async function addHRUser() {
+  const form = document.getElementById('addHRForm')
+  const data = {}
+  new FormData(form).forEach((v, k) => { data[k] = v || null })
+  try {
+    await API.post('/api/hr-users', data)
+    showToast('Tạo tài khoản thành công!', 'success')
+    closeModal()
+    loadHRUsers()
+  } catch(e) { showToast('Lỗi: ' + (e.response?.data?.error || e.message), 'error') }
+}
+
+// ===== INIT =====
+async function init() {
+  const token = getToken()
+  if (token) {
+    try {
+      const r = await API.get('/api/auth/me')
+      currentUser = r.data.user
+      showApp()
+    } catch { showLogin() }
+  } else { showLogin() }
+}
+
+init()
