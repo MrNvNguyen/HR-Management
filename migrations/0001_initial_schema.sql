@@ -143,12 +143,13 @@ CREATE TABLE IF NOT EXISTS employee_history (
   FOREIGN KEY (changed_by) REFERENCES hr_users(id)
 );
 
--- Bảng cấu hình sync nguồn dữ liệu
+-- Bảng cấu hình sync nguồn dữ liệu (Cloudflare D1 HTTP API)
 CREATE TABLE IF NOT EXISTS data_sources (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   app_name TEXT UNIQUE NOT NULL,   -- 'BIM' hoặc 'C3D'
-  api_url TEXT NOT NULL,           -- URL API app nguồn
-  api_token TEXT,                  -- Token xác thực
+  cf_account_id TEXT,              -- Cloudflare Account ID
+  cf_database_id TEXT,             -- D1 Database ID của app nguồn
+  cf_api_token TEXT,               -- API Token có quyền D1:Read
   last_sync DATETIME,              -- Lần sync cuối
   sync_status TEXT DEFAULT 'pending', -- pending, success, error
   sync_message TEXT,

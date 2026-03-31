@@ -224,18 +224,23 @@ app.post('/api/system/init', async (c) => {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`).run()
 
-    // Tạo bảng data_sources
+    // Tạo bảng data_sources (dùng Cloudflare D1 HTTP API)
     await db.prepare(`CREATE TABLE IF NOT EXISTS data_sources (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       app_name TEXT UNIQUE NOT NULL,
-      api_url TEXT NOT NULL,
-      api_token TEXT,
+      cf_account_id TEXT,
+      cf_database_id TEXT,
+      cf_api_token TEXT,
       last_sync DATETIME,
       sync_status TEXT DEFAULT 'pending',
       sync_message TEXT,
       is_active INTEGER DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`).run()
+    // Migrate: add new columns if not exist (safe)
+    try { await db.prepare(`ALTER TABLE data_sources ADD COLUMN cf_account_id TEXT`).run() } catch (_) {}
+    try { await db.prepare(`ALTER TABLE data_sources ADD COLUMN cf_database_id TEXT`).run() } catch (_) {}
+    try { await db.prepare(`ALTER TABLE data_sources ADD COLUMN cf_api_token TEXT`).run() } catch (_) {}
 
     // Tạo admin mặc định (password: Admin@123)
     const adminHash = await hashPassword('Admin@123')
@@ -254,9 +259,9 @@ app.post('/api/system/init', async (c) => {
       await db.prepare(`INSERT INTO hr_users (username, password_hash, full_name, email, role) VALUES (?, ?, ?, ?, ?)`).bind('hcns', hrHash, 'Nhân viên HCNS', 'hcns@onecad.vn', 'hr_staff').run()
     }
 
-    // Cấu hình nguồn dữ liệu
-    await db.prepare(`INSERT OR IGNORE INTO data_sources (app_name, api_url) VALUES (?, ?)`).bind('BIM', 'https://bim-management.pages.dev').run()
-    await db.prepare(`INSERT OR IGNORE INTO data_sources (app_name, api_url) VALUES (?, ?)`).bind('C3D', 'https://c3d-management.pages.dev').run()
+    // Cấu hình nguồn dữ liệu (dùng Cloudflare D1 HTTP API)
+    await db.prepare(`INSERT OR IGNORE INTO data_sources (app_name, cf_account_id, cf_database_id, cf_api_token) VALUES (?, ?, ?, ?)`).bind('BIM', '', '', '').run()
+    await db.prepare(`INSERT OR IGNORE INTO data_sources (app_name, cf_account_id, cf_database_id, cf_api_token) VALUES (?, ?, ?, ?)`).bind('C3D', '', '', '').run()
 
     return c.json({ success: true, message: 'Hệ thống đã được khởi tạo thành công!' })
   } catch (e: any) {
@@ -571,76 +576,118 @@ app.delete('/api/reminders/:id', authMiddleware, async (c) => {
   return c.json({ success: true })
 })
 
-// ===== DATA SOURCES & SYNC =====
+// ===== DATA SOURCES & SYNC (Cloudflare D1 HTTP API) =====
 app.get('/api/data-sources', authMiddleware, async (c) => {
   const db = c.env.DB
-  const rows = await db.prepare('SELECT * FROM data_sources ORDER BY app_name').all()
+  const rows = await db.prepare('SELECT id, app_name, cf_account_id, cf_database_id, last_sync, sync_status, sync_message, is_active, created_at FROM data_sources ORDER BY app_name').all()
   return c.json({ data: rows.results })
 })
 
 app.put('/api/data-sources/:id', authMiddleware, async (c) => {
   const db = c.env.DB
   const id = c.req.param('id')
-  const { api_url, api_token, is_active } = await c.req.json()
-  await db.prepare('UPDATE data_sources SET api_url = ?, api_token = ?, is_active = ? WHERE id = ?').bind(api_url, api_token, is_active, id).run()
+  const { cf_account_id, cf_database_id, cf_api_token, is_active } = await c.req.json()
+  await db.prepare(
+    'UPDATE data_sources SET cf_account_id = ?, cf_database_id = ?, cf_api_token = ?, is_active = ? WHERE id = ?'
+  ).bind(cf_account_id, cf_database_id, cf_api_token, is_active ?? 1, id).run()
   return c.json({ success: true })
 })
 
-// Sync nhân viên từ app nguồn
+// Test kết nối D1 HTTP API
+app.post('/api/sync/:appName/test', authMiddleware, async (c) => {
+  const db = c.env.DB
+  const appName = c.req.param('appName').toUpperCase()
+  const source = await db.prepare('SELECT * FROM data_sources WHERE app_name = ?').bind(appName).first() as any
+  if (!source) return c.json({ error: 'Không tìm thấy nguồn' }, 404)
+  if (!source.cf_account_id || !source.cf_database_id || !source.cf_api_token) {
+    return c.json({ error: 'Chưa nhập đủ Account ID, Database ID và API Token' }, 400)
+  }
+  try {
+    const res = await queryD1(source.cf_account_id, source.cf_database_id, source.cf_api_token, 'SELECT COUNT(*) as cnt FROM users')
+    const cnt = res?.[0]?.cnt ?? 0
+    return c.json({ success: true, message: `Kết nối thành công! Tìm thấy ${cnt} nhân viên trong database ${appName}.` })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
+// Hàm gọi Cloudflare D1 HTTP API
+async function queryD1(accountId: string, databaseId: string, apiToken: string, sql: string, params: any[] = []): Promise<any[]> {
+  const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${databaseId}/query`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ sql, params })
+  })
+  if (!res.ok) {
+    const errText = await res.text()
+    throw new Error(`D1 API lỗi ${res.status}: ${errText.slice(0, 200)}`)
+  }
+  const data: any = await res.json()
+  if (!data.success) {
+    const errMsg = data.errors?.map((e: any) => e.message).join(', ') || 'Unknown D1 error'
+    throw new Error(`D1 query thất bại: ${errMsg}`)
+  }
+  return data.result?.[0]?.results ?? []
+}
+
+// Sync nhân viên từ app nguồn qua Cloudflare D1 HTTP API
 app.post('/api/sync/:appName', authMiddleware, async (c) => {
   const db = c.env.DB
   const appName = c.req.param('appName').toUpperCase()
   const source = await db.prepare('SELECT * FROM data_sources WHERE app_name = ? AND is_active = 1').bind(appName).first() as any
   if (!source) return c.json({ error: 'Nguồn dữ liệu không tồn tại hoặc chưa kích hoạt' }, 404)
 
+  if (!source.cf_account_id || !source.cf_database_id || !source.cf_api_token) {
+    return c.json({ error: 'Chưa cấu hình đủ thông tin Cloudflare (Account ID, Database ID, API Token)' }, 400)
+  }
+
   try {
-    // Gọi API app nguồn để lấy danh sách users
-    const headers: HeadersInit = { 'Content-Type': 'application/json' }
-    if (source.api_token) headers['Authorization'] = `Bearer ${source.api_token}`
+    // Query trực tiếp bảng users từ D1 database của app nguồn
+    const users = await queryD1(
+      source.cf_account_id,
+      source.cf_database_id,
+      source.cf_api_token,
+      `SELECT id, username, full_name, email, phone, role, department, salary_monthly, is_active
+       FROM users WHERE is_active = 1 ORDER BY id`
+    )
 
-    // Login để lấy token
-    const loginRes = await fetch(`${source.api_url}/api/auth/login`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ username: 'admin', password: 'Admin@123' })
-    })
-    if (!loginRes.ok) throw new Error(`Không thể kết nối đến ${appName}: ${loginRes.status}`)
-
-    const loginData: any = await loginRes.json()
-    const token = loginData.token
-    if (!token) throw new Error('Không lấy được token từ app nguồn')
-
-    // Lấy danh sách users
-    const usersRes = await fetch(`${source.api_url}/api/users`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-    if (!usersRes.ok) throw new Error(`Lỗi lấy danh sách users: ${usersRes.status}`)
-    const usersData: any = await usersRes.json()
-    const users = usersData.users || usersData.data || []
+    if (!users || users.length === 0) {
+      await db.prepare(`UPDATE data_sources SET last_sync = CURRENT_TIMESTAMP, sync_status = 'success', sync_message = 'Không có nhân viên nào' WHERE app_name = ?`).bind(appName).run()
+      return c.json({ success: true, added: 0, updated: 0, total: 0 })
+    }
 
     let added = 0, updated = 0
     for (const u of users) {
       const existing = await db.prepare('SELECT id FROM employees WHERE source_app = ? AND source_id = ?').bind(appName, u.id).first() as any
       if (existing) {
-        // Cập nhật thông tin từ nguồn (chỉ các trường gốc)
-        await db.prepare(`UPDATE employees SET username = ?, full_name = ?, email = ?, phone = ?, role = ?, department = ?, salary_monthly = ?, is_active = ?, synced_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE source_app = ? AND source_id = ?`
-        ).bind(u.username, u.full_name, u.email, u.phone, u.role, u.department, u.salary_monthly, u.is_active, appName, u.id).run()
+        await db.prepare(
+          `UPDATE employees SET username = ?, full_name = ?, email = ?, phone = ?, role = ?, department = ?, salary_monthly = ?, is_active = ?, synced_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+           WHERE source_app = ? AND source_id = ?`
+        ).bind(u.username, u.full_name, u.email, u.phone, u.role, u.department, u.salary_monthly ?? 0, u.is_active ?? 1, appName, u.id).run()
         updated++
       } else {
-        // Thêm mới
         const empCode = `${appName}-${String(u.id).padStart(4, '0')}`
-        await db.prepare(`INSERT INTO employees (source_app, source_id, username, full_name, email, phone, role, department, salary_monthly, is_active, employee_code, synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
-        ).bind(appName, u.id, u.username, u.full_name, u.email, u.phone, u.role, u.department, u.salary_monthly, u.is_active, empCode).run()
+        await db.prepare(
+          `INSERT INTO employees (source_app, source_id, username, full_name, email, phone, role, department, salary_monthly, is_active, employee_code, synced_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+        ).bind(appName, u.id, u.username, u.full_name, u.email, u.phone, u.role, u.department, u.salary_monthly ?? 0, u.is_active ?? 1, empCode).run()
         added++
       }
     }
 
-    // Cập nhật trạng thái sync
-    await db.prepare(`UPDATE data_sources SET last_sync = CURRENT_TIMESTAMP, sync_status = 'success', sync_message = ? WHERE app_name = ?`).bind(`Đồng bộ thành công: +${added} mới, ~${updated} cập nhật`, appName).run()
+    await db.prepare(
+      `UPDATE data_sources SET last_sync = CURRENT_TIMESTAMP, sync_status = 'success', sync_message = ? WHERE app_name = ?`
+    ).bind(`Đồng bộ thành công: +${added} mới, ~${updated} cập nhật (tổng ${users.length})`, appName).run()
 
     return c.json({ success: true, added, updated, total: users.length })
   } catch (e: any) {
-    await db.prepare(`UPDATE data_sources SET sync_status = 'error', sync_message = ? WHERE app_name = ?`).bind(e.message, appName).run()
+    await db.prepare(
+      `UPDATE data_sources SET sync_status = 'error', sync_message = ? WHERE app_name = ?`
+    ).bind(e.message, appName).run()
     return c.json({ error: e.message }, 500)
   }
 })

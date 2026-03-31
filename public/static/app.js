@@ -1101,72 +1101,179 @@ async function renderSync() {
     const sources = r.data.data
     document.getElementById('pageContent').innerHTML = `
     <div class="space-y-6">
-      <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
-        <i class="fas fa-info-circle mr-2"></i>
-        <strong>Hướng dẫn đồng bộ:</strong> Nhập URL của app BIM/C3D và token admin, sau đó bấm "Đồng bộ ngay". Hệ thống sẽ kéo toàn bộ danh sách nhân viên về HCNS.
+      <!-- Hướng dẫn -->
+      <div class="card p-5">
+        <h3 class="font-semibold text-gray-800 mb-3"><i class="fas fa-book-open text-blue-500 mr-2"></i>Hướng dẫn đồng bộ dữ liệu D1</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div class="bg-blue-50 rounded-lg p-4">
+            <div class="font-semibold text-blue-700 mb-2"><span class="w-6 h-6 bg-blue-600 text-white rounded-full inline-flex items-center justify-center text-xs mr-2">1</span>Lấy Account ID</div>
+            <p class="text-gray-600 text-xs">Đăng nhập <strong>dash.cloudflare.com</strong> → Chọn tài khoản → URL chứa Account ID dạng: <code class="bg-white px-1 rounded">/ACCOUNT_ID/</code></p>
+          </div>
+          <div class="bg-green-50 rounded-lg p-4">
+            <div class="font-semibold text-green-700 mb-2"><span class="w-6 h-6 bg-green-600 text-white rounded-full inline-flex items-center justify-center text-xs mr-2">2</span>Lấy Database ID</div>
+            <p class="text-gray-600 text-xs">Vào <strong>Workers & Pages → D1 SQL Database</strong> → Click vào database BIM/C3D → Copy <strong>Database ID</strong></p>
+          </div>
+          <div class="bg-purple-50 rounded-lg p-4">
+            <div class="font-semibold text-purple-700 mb-2"><span class="w-6 h-6 bg-purple-600 text-white rounded-full inline-flex items-center justify-center text-xs mr-2">3</span>Tạo API Token</div>
+            <p class="text-gray-600 text-xs">Vào <strong>My Profile → API Tokens → Create Token</strong> → Dùng template <strong>"Edit Cloudflare Workers"</strong> hoặc cấp quyền <strong>D1:Edit</strong></p>
+          </div>
+        </div>
+        <div class="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs text-yellow-800">
+          <i class="fas fa-shield-alt mr-1"></i>
+          <strong>Bảo mật:</strong> API Token chỉ cần quyền <code>D1:Read</code> để đọc dữ liệu. Token được lưu mã hóa, chỉ dùng để đọc bảng <code>users</code>.
+        </div>
       </div>
+
       ${sources.map(s => `
-      <div class="card p-6">
-        <div class="flex items-center justify-between mb-4">
-          <div class="flex items-center gap-3">
-            <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg ${s.app_name==='BIM'?'bg-blue-600':'bg-green-600'}">${s.app_name}</div>
+      <div class="card p-6" id="sourceCard_${s.app_name}">
+        <div class="flex items-start justify-between mb-5">
+          <div class="flex items-center gap-4">
+            <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg ${s.app_name==='BIM'?'bg-gradient-to-br from-blue-500 to-blue-700':'bg-gradient-to-br from-green-500 to-green-700'}">${s.app_name}</div>
             <div>
-              <div class="font-semibold text-gray-800">${s.app_name} Project Management</div>
-              <div class="flex items-center gap-2 mt-1">
-                <span class="text-xs px-2 py-0.5 rounded-full ${s.sync_status==='success'?'bg-green-100 text-green-700':s.sync_status==='error'?'bg-red-100 text-red-700':'bg-gray-100 text-gray-600'}">${s.sync_status==='success'?'✓ Đồng bộ thành công':s.sync_status==='error'?'✗ Lỗi':'Chưa đồng bộ'}</span>
-                ${s.last_sync ? `<span class="text-xs text-gray-400">Lần cuối: ${dayjs(s.last_sync).format('DD/MM/YYYY HH:mm')}</span>` : ''}
+              <div class="font-bold text-gray-800 text-lg">${s.app_name} Project Management</div>
+              <div class="flex items-center gap-3 mt-1">
+                <span class="text-xs px-3 py-1 rounded-full font-medium ${s.sync_status==='success'?'bg-green-100 text-green-700':s.sync_status==='error'?'bg-red-100 text-red-700':'bg-gray-100 text-gray-500'}">
+                  ${s.sync_status==='success'?'<i class="fas fa-check-circle mr-1"></i>Đồng bộ thành công':s.sync_status==='error'?'<i class="fas fa-times-circle mr-1"></i>Lỗi kết nối':'<i class="fas fa-clock mr-1"></i>Chưa đồng bộ'}
+                </span>
+                ${s.last_sync ? `<span class="text-xs text-gray-400"><i class="far fa-clock mr-1"></i>${dayjs(s.last_sync).format('DD/MM/YYYY HH:mm')}</span>` : ''}
               </div>
-              ${s.sync_message ? `<div class="text-xs text-gray-500 mt-1">${s.sync_message}</div>` : ''}
+              ${s.sync_message ? `<div class="text-xs mt-1 ${s.sync_status==='error'?'text-red-600':'text-gray-500'}">${s.sync_message}</div>` : ''}
             </div>
           </div>
-          <button onclick="syncSource('${s.app_name}',${s.id})" id="syncBtn_${s.app_name}" class="${s.app_name==='BIM'?'bg-blue-600':'bg-green-600'} text-white px-4 py-2 rounded-lg text-sm hover:opacity-90 flex items-center gap-2">
-            <i class="fas fa-sync-alt" id="syncIcon_${s.app_name}"></i>Đồng bộ ngay
-          </button>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="text-xs font-medium text-gray-700 block mb-1">URL App ${s.app_name}</label>
-            <input id="url_${s.id}" type="url" value="${s.api_url||''}" placeholder="https://your-app.pages.dev">
-          </div>
-          <div>
-            <label class="text-xs font-medium text-gray-700 block mb-1">Admin Token (tùy chọn)</label>
-            <input id="token_${s.id}" type="password" value="${s.api_token||''}" placeholder="Để trống nếu dùng admin/Admin@123">
+          <div class="flex gap-2">
+            <button onclick="testConnection('${s.app_name}',${s.id})" id="testBtn_${s.app_name}" class="border border-gray-300 text-gray-600 px-3 py-2 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2">
+              <i class="fas fa-plug" id="testIcon_${s.app_name}"></i>Test kết nối
+            </button>
+            <button onclick="syncSource('${s.app_name}',${s.id})" id="syncBtn_${s.app_name}" class="${s.app_name==='BIM'?'bg-blue-600 hover:bg-blue-700':'bg-green-600 hover:bg-green-700'} text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors">
+              <i class="fas fa-sync-alt" id="syncIcon_${s.app_name}"></i>Đồng bộ ngay
+            </button>
           </div>
         </div>
-        <div class="mt-3 flex gap-2">
-          <button onclick="updateSource(${s.id})" class="text-sm text-blue-600 hover:underline"><i class="fas fa-save mr-1"></i>Lưu cấu hình</button>
-          <span class="text-gray-300">|</span>
-          <span class="text-xs text-gray-500">Mặc định đăng nhập với admin / Admin@123</span>
+
+        <!-- Form cấu hình -->
+        <div class="bg-gray-50 rounded-xl p-4 space-y-4">
+          <div class="flex items-center gap-2 mb-1">
+            <i class="fas fa-cog text-gray-400"></i>
+            <span class="text-sm font-semibold text-gray-700">Cấu hình kết nối Cloudflare D1</span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="text-xs font-medium text-gray-600 block mb-1">
+                <i class="fas fa-id-card mr-1 text-blue-400"></i>Account ID *
+              </label>
+              <input id="accId_${s.id}" type="text" value="${s.cf_account_id||''}" 
+                placeholder="a1b2c3d4e5f6..." class="font-mono text-sm"
+                oninput="markDirty(${s.id})">
+              <p class="text-xs text-gray-400 mt-1">Từ URL: dash.cloudflare.com/<strong>ACCOUNT_ID</strong>/</p>
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-600 block mb-1">
+                <i class="fas fa-database mr-1 text-green-400"></i>Database ID *
+              </label>
+              <input id="dbId_${s.id}" type="text" value="${s.cf_database_id||''}" 
+                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" class="font-mono text-sm"
+                oninput="markDirty(${s.id})">
+              <p class="text-xs text-gray-400 mt-1">Workers & Pages → D1 → Tên DB → Database ID</p>
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-600 block mb-1">
+                <i class="fas fa-key mr-1 text-purple-400"></i>API Token *
+              </label>
+              <div class="relative">
+                <input id="apiToken_${s.id}" type="password" 
+                  placeholder="${s.cf_api_token ? '••••••••••••••••' : 'Token với quyền D1:Read'}" 
+                  class="font-mono text-sm pr-10"
+                  oninput="markDirty(${s.id})">
+                <button onclick="toggleTokenVis(${s.id})" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <i class="fas fa-eye" id="eyeIcon_${s.id}"></i>
+                </button>
+              </div>
+              <p class="text-xs text-gray-400 mt-1">My Profile → API Tokens → Create Token</p>
+            </div>
+          </div>
+          <div class="flex items-center justify-between pt-2">
+            <div class="flex items-center gap-3">
+              <button onclick="saveSource(${s.id},'${s.app_name}')" id="saveBtn_${s.id}" class="btn-primary text-sm py-1.5 px-4">
+                <i class="fas fa-save mr-1"></i>Lưu cấu hình
+              </button>
+              <span id="dirtyHint_${s.id}" class="text-xs text-orange-500 hidden"><i class="fas fa-circle mr-1" style="font-size:6px"></i>Có thay đổi chưa lưu</span>
+            </div>
+            <a href="https://dash.cloudflare.com" target="_blank" class="text-xs text-blue-500 hover:underline">
+              <i class="fas fa-external-link-alt mr-1"></i>Mở Cloudflare Dashboard
+            </a>
+          </div>
         </div>
+
+        <!-- Trạng thái kết nối -->
+        <div id="testResult_${s.app_name}" class="mt-4 hidden"></div>
       </div>`).join('')}
     </div>`
   } catch(e) { showToast('Lỗi tải cấu hình', 'error') }
 }
 
-async function updateSource(id) {
-  const url = document.getElementById(`url_${id}`).value
-  const token = document.getElementById(`token_${id}`).value
+function markDirty(id) {
+  document.getElementById(`dirtyHint_${id}`)?.classList.remove('hidden')
+}
+
+function toggleTokenVis(id) {
+  const inp = document.getElementById(`apiToken_${id}`)
+  const icon = document.getElementById(`eyeIcon_${id}`)
+  if (inp.type === 'password') { inp.type = 'text'; icon.classList.replace('fa-eye','fa-eye-slash') }
+  else { inp.type = 'password'; icon.classList.replace('fa-eye-slash','fa-eye') }
+}
+
+async function saveSource(id, appName) {
+  const accId = document.getElementById(`accId_${id}`)?.value?.trim()
+  const dbId = document.getElementById(`dbId_${id}`)?.value?.trim()
+  const token = document.getElementById(`apiToken_${id}`)?.value?.trim()
+  if (!accId || !dbId) { showToast('Vui lòng nhập Account ID và Database ID', 'error'); return }
   try {
-    await API.put(`/api/data-sources/${id}`, { api_url: url, api_token: token || null, is_active: 1 })
-    showToast('Lưu cấu hình thành công!', 'success')
-  } catch(e) { showToast('Lỗi', 'error') }
+    await API.put(`/api/data-sources/${id}`, {
+      cf_account_id: accId,
+      cf_database_id: dbId,
+      cf_api_token: token || undefined,
+      is_active: 1
+    })
+    showToast(`Lưu cấu hình ${appName} thành công!`, 'success')
+    document.getElementById(`dirtyHint_${id}`)?.classList.add('hidden')
+  } catch(e) { showToast('Lỗi lưu cấu hình', 'error') }
+}
+
+async function testConnection(appName, sourceId) {
+  // Save first
+  await saveSource(sourceId, appName)
+  const btn = document.getElementById(`testBtn_${appName}`)
+  const icon = document.getElementById(`testIcon_${appName}`)
+  const resultDiv = document.getElementById(`testResult_${appName}`)
+  btn.disabled = true
+  icon.classList.add('fa-spin')
+  resultDiv.className = 'mt-4'
+  resultDiv.innerHTML = `<div class="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 p-3 rounded-lg"><div class="loading" style="border-color:#0066CC;border-top-color:transparent;width:16px;height:16px;border-width:2px"></div>Đang kiểm tra kết nối...</div>`
+  try {
+    const r = await API.post(`/api/sync/${appName}/test`)
+    resultDiv.innerHTML = `<div class="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 p-3 rounded-lg"><i class="fas fa-check-circle text-green-500"></i>${r.data.message}</div>`
+  } catch(e) {
+    const msg = e.response?.data?.error || e.message
+    resultDiv.innerHTML = `<div class="text-sm text-red-700 bg-red-50 border border-red-200 p-3 rounded-lg"><i class="fas fa-times-circle text-red-500 mr-2"></i><strong>Kết nối thất bại:</strong> ${msg}</div>`
+  } finally {
+    btn.disabled = false
+    icon.classList.remove('fa-spin')
+  }
 }
 
 async function syncSource(appName, sourceId) {
+  // Save config first
+  await saveSource(sourceId, appName)
   const btn = document.getElementById(`syncBtn_${appName}`)
   const icon = document.getElementById(`syncIcon_${appName}`)
   btn.disabled = true
   icon.classList.add('fa-spin')
-
-  // Save config first
-  await updateSource(sourceId)
-
   try {
     const r = await API.post(`/api/sync/${appName}`)
-    showToast(`Đồng bộ ${appName} thành công: +${r.data.added} mới, ~${r.data.updated} cập nhật`, 'success')
+    showToast(`✓ Đồng bộ ${appName} thành công: +${r.data.added} mới, ~${r.data.updated} cập nhật (tổng ${r.data.total})`, 'success', 6000)
     renderSync()
   } catch(e) {
-    showToast('Lỗi đồng bộ: ' + (e.response?.data?.error || e.message), 'error')
+    showToast('Lỗi đồng bộ: ' + (e.response?.data?.error || e.message), 'error', 8000)
     renderSync()
   } finally {
     btn.disabled = false
