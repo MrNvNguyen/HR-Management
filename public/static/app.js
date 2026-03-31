@@ -1101,26 +1101,117 @@ async function renderSync() {
     const sources = r.data.data
     document.getElementById('pageContent').innerHTML = `
     <div class="space-y-6">
-      <!-- Hướng dẫn -->
-      <div class="card p-5">
-        <h3 class="font-semibold text-gray-800 mb-3"><i class="fas fa-book-open text-blue-500 mr-2"></i>Hướng dẫn đồng bộ dữ liệu D1</h3>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <div class="bg-blue-50 rounded-lg p-4">
-            <div class="font-semibold text-blue-700 mb-2"><span class="w-6 h-6 bg-blue-600 text-white rounded-full inline-flex items-center justify-center text-xs mr-2">1</span>Lấy Account ID</div>
-            <p class="text-gray-600 text-xs">Đăng nhập <strong>dash.cloudflare.com</strong> → Chọn tài khoản → URL chứa Account ID dạng: <code class="bg-white px-1 rounded">/ACCOUNT_ID/</code></p>
-          </div>
-          <div class="bg-green-50 rounded-lg p-4">
-            <div class="font-semibold text-green-700 mb-2"><span class="w-6 h-6 bg-green-600 text-white rounded-full inline-flex items-center justify-center text-xs mr-2">2</span>Lấy Database ID</div>
-            <p class="text-gray-600 text-xs">Vào <strong>Workers & Pages → D1 SQL Database</strong> → Click vào database BIM/C3D → Copy <strong>Database ID</strong></p>
-          </div>
-          <div class="bg-purple-50 rounded-lg p-4">
-            <div class="font-semibold text-purple-700 mb-2"><span class="w-6 h-6 bg-purple-600 text-white rounded-full inline-flex items-center justify-center text-xs mr-2">3</span>Tạo API Token</div>
-            <p class="text-gray-600 text-xs">Vào <strong>My Profile → API Tokens → Create Token</strong> → Dùng template <strong>"Edit Cloudflare Workers"</strong> hoặc cấp quyền <strong>D1:Edit</strong></p>
-          </div>
+
+      <!-- HƯỚNG DẪN CHI TIẾT -->
+      <div class="card p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-gray-800 text-base"><i class="fas fa-book-open text-blue-500 mr-2"></i>Cách lấy thông tin kết nối Cloudflare D1</h3>
+          <button onclick="document.getElementById('guidePanel').classList.toggle('hidden')" class="text-xs text-blue-600 hover:underline">
+            <i class="fas fa-chevron-down mr-1"></i>Ẩn/Hiện hướng dẫn
+          </button>
         </div>
-        <div class="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs text-yellow-800">
-          <i class="fas fa-shield-alt mr-1"></i>
-          <strong>Bảo mật:</strong> API Token chỉ cần quyền <code>D1:Read</code> để đọc dữ liệu. Token được lưu mã hóa, chỉ dùng để đọc bảng <code>users</code>.
+        <div id="guidePanel">
+          <!-- 3 bước chính -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+
+            <!-- Bước 1: Account ID -->
+            <div class="border border-blue-200 rounded-xl overflow-hidden">
+              <div class="bg-blue-600 text-white px-4 py-2 flex items-center gap-2">
+                <span class="w-6 h-6 bg-white text-blue-600 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">1</span>
+                <span class="font-semibold text-sm">Lấy Account ID</span>
+              </div>
+              <div class="p-4 bg-blue-50 space-y-2">
+                <p class="text-xs text-gray-700">Đăng nhập Cloudflare Dashboard, sau đó nhìn vào <strong>thanh địa chỉ trình duyệt</strong>:</p>
+                <div class="bg-white border border-blue-200 rounded-lg p-2 font-mono text-xs text-gray-600 break-all">
+                  dash.cloudflare.com/<span class="bg-yellow-200 text-yellow-900 px-1 rounded font-bold">a1b2c3d4e5f6...</span>/workers-and-pages
+                </div>
+                <p class="text-xs text-blue-700"><i class="fas fa-arrow-right mr-1"></i>Đoạn chữ dài sau dấu <code>/</code> đầu tiên là <strong>Account ID</strong></p>
+                <a href="https://dash.cloudflare.com" target="_blank" class="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-100 hover:bg-blue-200 px-3 py-1.5 rounded-lg transition-colors mt-1">
+                  <i class="fas fa-external-link-alt"></i>Mở Cloudflare Dashboard
+                </a>
+              </div>
+            </div>
+
+            <!-- Bước 2: Database ID -->
+            <div class="border border-green-200 rounded-xl overflow-hidden">
+              <div class="bg-green-600 text-white px-4 py-2 flex items-center gap-2">
+                <span class="w-6 h-6 bg-white text-green-600 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">2</span>
+                <span class="font-semibold text-sm">Lấy Database ID</span>
+              </div>
+              <div class="p-4 bg-green-50 space-y-2">
+                <p class="text-xs text-gray-700">Trong Cloudflare Dashboard, theo đường dẫn:</p>
+                <div class="bg-white border border-green-200 rounded-lg p-2 text-xs text-gray-700 space-y-1">
+                  <div class="flex items-center gap-1"><i class="fas fa-layer-group text-green-500"></i><span><strong>Workers &amp; Pages</strong></span></div>
+                  <div class="flex items-center gap-1 pl-3"><i class="fas fa-angle-right text-gray-400"></i><span><strong>D1 SQL Database</strong></span></div>
+                  <div class="flex items-center gap-1 pl-6"><i class="fas fa-angle-right text-gray-400"></i><span>Click vào tên database BIM hoặc C3D</span></div>
+                  <div class="flex items-center gap-1 pl-9"><i class="fas fa-angle-right text-gray-400"></i><span class="text-green-700 font-semibold">Copy "Database ID"</span></div>
+                </div>
+                <p class="text-xs text-green-700"><i class="fas fa-info-circle mr-1"></i>Database ID có dạng UUID: <code>xxxxxxxx-xxxx-xxxx-...</code></p>
+              </div>
+            </div>
+
+            <!-- Bước 3: API Token -->
+            <div class="border border-purple-200 rounded-xl overflow-hidden">
+              <div class="bg-purple-600 text-white px-4 py-2 flex items-center gap-2">
+                <span class="w-6 h-6 bg-white text-purple-600 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">3</span>
+                <span class="font-semibold text-sm">Tạo API Token</span>
+              </div>
+              <div class="p-4 bg-purple-50 space-y-2">
+                <p class="text-xs text-gray-700">Tạo token để app HCNS đọc dữ liệu D1:</p>
+                <div class="bg-white border border-purple-200 rounded-lg p-2 text-xs text-gray-700 space-y-1">
+                  <div class="flex items-center gap-1"><i class="fas fa-user-circle text-purple-500"></i><span><strong>My Profile</strong> (icon góc trên phải)</span></div>
+                  <div class="flex items-center gap-1 pl-3"><i class="fas fa-angle-right text-gray-400"></i><span><strong>API Tokens → Create Token</strong></span></div>
+                  <div class="flex items-center gap-1 pl-3"><i class="fas fa-angle-right text-gray-400"></i><span>Chọn template <strong>"Read all resources"</strong></span></div>
+                  <div class="flex items-center gap-1 pl-3"><i class="fas fa-angle-right text-gray-400"></i><span>Hoặc tự tạo với quyền <strong class="text-purple-700">D1 : Read</strong></span></div>
+                </div>
+                <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" class="inline-flex items-center gap-1 text-xs text-purple-600 bg-purple-100 hover:bg-purple-200 px-3 py-1.5 rounded-lg transition-colors mt-1">
+                  <i class="fas fa-external-link-alt"></i>Tạo API Token ngay
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lưu ý bảo mật + sơ đồ luồng dữ liệu -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <div class="font-semibold text-amber-800 text-xs mb-2"><i class="fas fa-shield-alt mr-1 text-amber-600"></i>Lưu ý bảo mật</div>
+              <ul class="text-xs text-amber-800 space-y-1 list-disc list-inside">
+                <li>Token chỉ cần quyền <strong>D1 : Read</strong> (không cần Write)</li>
+                <li>Token được mã hóa lưu trong database HR, không hiển thị lại</li>
+                <li>Có thể tạo token riêng cho từng app BIM / C3D</li>
+                <li>Nếu lộ token → xóa ngay tại Cloudflare và tạo token mới</li>
+              </ul>
+            </div>
+            <div class="bg-gray-50 border border-gray-200 rounded-xl p-4">
+              <div class="font-semibold text-gray-700 text-xs mb-2"><i class="fas fa-project-diagram mr-1 text-gray-500"></i>Luồng dữ liệu đồng bộ</div>
+              <div class="flex items-center gap-2 text-xs">
+                <div class="text-center">
+                  <div class="w-16 h-10 bg-blue-100 border border-blue-300 rounded-lg flex items-center justify-center text-blue-700 font-bold text-sm">BIM<br><span class="text-xs font-normal">D1 DB</span></div>
+                </div>
+                <div class="flex flex-col items-center gap-1 flex-1">
+                  <div class="text-gray-400 text-xs">Cloudflare</div>
+                  <div class="w-full border-t-2 border-dashed border-gray-300 relative">
+                    <i class="fas fa-arrow-right absolute right-0 -top-2 text-gray-400 text-xs"></i>
+                  </div>
+                  <div class="text-gray-400 text-xs">D1 HTTP API</div>
+                </div>
+                <div class="text-center">
+                  <div class="w-16 h-10 bg-green-100 border border-green-300 rounded-lg flex items-center justify-center text-green-700 font-bold text-sm">HR<br><span class="text-xs font-normal">D1 DB</span></div>
+                </div>
+                <div class="flex flex-col items-center gap-1 flex-1">
+                  <div class="text-gray-400 text-xs">Cloudflare</div>
+                  <div class="w-full border-t-2 border-dashed border-gray-300 relative">
+                    <i class="fas fa-arrow-right absolute right-0 -top-2 text-gray-400 text-xs"></i>
+                  </div>
+                  <div class="text-gray-400 text-xs">D1 HTTP API</div>
+                </div>
+                <div class="text-center">
+                  <div class="w-16 h-10 bg-emerald-100 border border-emerald-300 rounded-lg flex items-center justify-center text-emerald-700 font-bold text-sm">C3D<br><span class="text-xs font-normal">D1 DB</span></div>
+                </div>
+              </div>
+              <p class="text-xs text-gray-500 mt-2">App HCNS đọc trực tiếp từ D1 database của BIM và C3D qua Cloudflare REST API, không cần qua app trung gian.</p>
+            </div>
+          </div>
         </div>
       </div>
 
