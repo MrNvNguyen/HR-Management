@@ -453,26 +453,60 @@ app.post('/api/contracts', authMiddleware, async (c) => {
   const db = c.env.DB
   const user = c.get('user')
   const body = await c.req.json()
-  const { employee_id, contract_number, contract_type, start_date, end_date, salary, position, department, signed_date, renewal_reminder_days = 30, notes } = body
+  const {
+    employee_id, contract_number, contract_type, start_date,
+    end_date, salary, position, department, signed_date,
+    renewal_reminder_days = 30, notes
+  } = body
 
-  if (!employee_id || !contract_number || !contract_type || !start_date) return c.json({ error: 'Thiếu thông tin bắt buộc' }, 400)
+  if (!employee_id || !contract_number || !contract_type || !start_date)
+    return c.json({ error: 'Thiếu thông tin bắt buộc (nhân viên, số HĐ, loại HĐ, ngày bắt đầu)' }, 400)
 
-  const result = await db.prepare(`
-    INSERT INTO contracts (employee_id, contract_number, contract_type, start_date, end_date, salary, position, department, signed_date, renewal_reminder_days, notes, created_by, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
-  `).bind(employee_id, contract_number, contract_type, start_date, end_date, salary, position, department, signed_date, renewal_reminder_days, notes, user.id).run()
+  // Ép kiểu đúng để tránh lỗi D1
+  const empId = parseInt(String(employee_id), 10)
+  const salaryNum = salary ? parseFloat(String(salary)) : null
+  const reminderDays = parseInt(String(renewal_reminder_days), 10) || 30
+  const endDateVal = end_date || null
+  const signedDateVal = signed_date || null
 
-  // Tự tạo nhắc nhở nếu có end_date
-  if (end_date) {
-    const remindDate = new Date(new Date(end_date).getTime() - renewal_reminder_days * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    const emp = await db.prepare(`SELECT full_name FROM employees WHERE id = ?`).bind(employee_id).first() as any
-    await db.prepare(`
-      INSERT INTO hr_reminders (employee_id, contract_id, reminder_type, title, description, remind_date, priority)
-      VALUES (?, ?, 'contract_expiry', ?, ?, ?, 'high')
-    `).bind(employee_id, result.meta.last_row_id, `HĐ sắp hết hạn: ${emp?.full_name}`, `Hợp đồng ${contract_number} hết hạn vào ${end_date}`, remindDate).run()
+  try {
+    // Kiểm tra số HĐ đã tồn tại chưa
+    const existing = await db.prepare('SELECT id FROM contracts WHERE contract_number = ?').bind(contract_number).first()
+    if (existing) return c.json({ error: `Số hợp đồng "${contract_number}" đã tồn tại` }, 409)
+
+    const result = await db.prepare(`
+      INSERT INTO contracts (employee_id, contract_number, contract_type, start_date, end_date, salary, position, department, signed_date, renewal_reminder_days, notes, created_by, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+    `).bind(
+      empId, contract_number, contract_type, start_date,
+      endDateVal, salaryNum, position || null, department || null,
+      signedDateVal, reminderDays, notes || null, user.id
+    ).run()
+
+    // Tự tạo nhắc nhở nếu HĐ có ngày kết thúc
+    if (endDateVal) {
+      try {
+        const remindDate = new Date(new Date(endDateVal).getTime() - reminderDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        const emp = await db.prepare(`SELECT full_name FROM employees WHERE id = ?`).bind(empId).first() as any
+        await db.prepare(`
+          INSERT INTO hr_reminders (employee_id, contract_id, reminder_type, title, description, remind_date, priority)
+          VALUES (?, ?, 'contract_expiry', ?, ?, ?, 'high')
+        `).bind(empId, result.meta.last_row_id,
+          `HĐ sắp hết hạn: ${emp?.full_name || ''}`,
+          `Hợp đồng ${contract_number} hết hạn vào ${endDateVal}`,
+          remindDate
+        ).run()
+      } catch (_) { /* Không block nếu tạo reminder lỗi */ }
+    }
+
+    return c.json({ success: true, id: result.meta.last_row_id })
+  } catch (e: any) {
+    const msg = e?.message || String(e)
+    if (msg.includes('UNIQUE') || msg.includes('unique')) {
+      return c.json({ error: `Số hợp đồng "${contract_number}" đã tồn tại` }, 409)
+    }
+    return c.json({ error: 'Lỗi tạo hợp đồng: ' + msg }, 500)
   }
-
-  return c.json({ success: true, id: result.meta.last_row_id })
 })
 
 app.put('/api/contracts/:id', authMiddleware, async (c) => {
