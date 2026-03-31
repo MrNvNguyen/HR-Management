@@ -455,7 +455,7 @@ async function confirmDeleteEmployee(id, name) {
   }
 }
 
-
+async function showEmployeeDetail(id) {
   try {
     const r = await API.get(`/api/employees/${id}`)
     const { employee: e, contracts, leaves, history } = r.data
