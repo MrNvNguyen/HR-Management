@@ -467,23 +467,41 @@ async function showEmployeeDetail(id) {
 
       <!-- Tab: HCNS -->
       <div id="tab-hcns" class="hidden">
-        <div class="grid grid-cols-2 gap-4">
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Ngày sinh</div><div>${fmtDate(e.date_of_birth)}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Giới tính</div><div>${e.gender || '—'}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">CMND/CCCD</div><div>${e.id_number || '—'}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Ngày vào công ty</div><div>${fmtDate(e.join_date)}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Thử việc</div><div>${fmtDate(e.probation_start)} → ${fmtDate(e.probation_end)}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Ngày ký HĐ chính thức</div><div>${fmtDate(e.official_start)}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Trình độ</div><div>${e.education || '—'}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Chuyên ngành</div><div>${e.major || '—'}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Trường đại học</div><div class="text-sm">${e.university || '—'}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Năm tốt nghiệp</div><div>${e.graduation_year || '—'}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Số BHXH</div><div>${e.social_insurance || '—'}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Mã số thuế</div><div>${e.tax_code || '—'}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Tài khoản NH</div><div>${e.bank_account ? e.bank_account + ' - ' + (e.bank_name||'') : '—'}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Địa chỉ</div><div class="text-xs">${e.address || '—'}</div></div>
+        <!-- Nhóm: Cá nhân -->
+        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Thông tin cá nhân</div>
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Ngày sinh</div><div class="text-sm text-gray-800">${fmtDate(e.date_of_birth)}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Giới tính</div><div class="text-sm text-gray-800">${e.gender || '—'}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">CMND/CCCD</div><div class="text-sm text-gray-800">${e.id_number || '—'}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Ngày cấp / Nơi cấp</div><div class="text-sm text-gray-800">${e.id_issue_date ? fmtDate(e.id_issue_date) + (e.id_issue_place ? ' · ' + e.id_issue_place : '') : '—'}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg col-span-2"><div class="text-xs text-gray-500 mb-1">Địa chỉ thường trú</div><div class="text-sm text-gray-800">${e.address || '—'}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg col-span-2"><div class="text-xs text-gray-500 mb-1">Nơi ở hiện tại</div><div class="text-sm text-gray-800">${e.current_address || '—'}</div></div>
         </div>
-        <div class="mt-3 bg-yellow-50 border border-yellow-200 p-3 rounded-lg text-sm text-yellow-800" style="${e.notes?'':'display:none'}">
+        <!-- Nhóm: Công việc -->
+        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Thông tin công việc</div>
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Ngày vào công ty</div><div class="text-sm text-gray-800">${fmtDate(e.join_date)}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Ngày ký HĐ chính thức</div><div class="text-sm text-gray-800">${fmtDate(e.official_start)}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Thử việc từ</div><div class="text-sm text-gray-800">${fmtDate(e.probation_start)}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Thử việc đến</div><div class="text-sm text-gray-800">${fmtDate(e.probation_end)}</div></div>
+        </div>
+        <!-- Nhóm: Học vấn -->
+        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Học vấn</div>
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Trình độ</div><div class="text-sm text-gray-800">${e.education || '—'}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Năm tốt nghiệp</div><div class="text-sm text-gray-800">${e.graduation_year || '—'}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg col-span-2"><div class="text-xs text-gray-500 mb-1">Chuyên ngành</div><div class="text-sm text-gray-800">${e.major || '—'}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg col-span-2"><div class="text-xs text-gray-500 mb-1">Trường đại học</div><div class="text-sm text-gray-800">${e.university || '—'}</div></div>
+        </div>
+        <!-- Nhóm: Bảo hiểm & Ngân hàng -->
+        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Bảo hiểm & Ngân hàng</div>
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Số BHXH</div><div class="text-sm text-gray-800">${e.social_insurance || '—'}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Số BHYT</div><div class="text-sm text-gray-800">${e.health_insurance || '—'}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Mã số thuế</div><div class="text-sm text-gray-800">${e.tax_code || '—'}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Tài khoản ngân hàng</div><div class="text-sm text-gray-800">${e.bank_account ? e.bank_account + (e.bank_name ? ' · ' + e.bank_name : '') + (e.bank_branch ? ' · ' + e.bank_branch : '') : '—'}</div></div>
+        </div>
+        <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-lg text-sm text-yellow-800" style="${e.notes?'':'display:none'}">
           <i class="fas fa-sticky-note mr-2"></i>${e.notes}
         </div>
       </div>
@@ -1319,26 +1337,37 @@ function toggleTokenVis(id) {
   else { inp.type = 'password'; icon.classList.replace('fa-eye-slash','fa-eye') }
 }
 
-async function saveSource(id, appName) {
+// Lưu cấu hình — silent=true: không toast, chỉ trả false nếu thiếu bắt buộc
+async function saveSource(id, appName, silent = false) {
   const accId = document.getElementById(`accId_${id}`)?.value?.trim()
   const dbId = document.getElementById(`dbId_${id}`)?.value?.trim()
   const token = document.getElementById(`apiToken_${id}`)?.value?.trim()
-  if (!accId || !dbId) { showToast('Vui lòng nhập Account ID và Database ID', 'error'); return }
+  // Thiếu accId / dbId → báo lỗi ngay cả khi silent
+  if (!accId || !dbId) {
+    if (!silent) showToast('Vui lòng nhập Account ID và Database ID', 'error')
+    return false
+  }
   try {
     await API.put(`/api/data-sources/${id}`, {
       cf_account_id: accId,
       cf_database_id: dbId,
-      cf_api_token: token || undefined,
+      // Chỉ gửi token nếu người dùng vừa nhập; nếu để trống = giữ nguyên token cũ
+      ...(token ? { cf_api_token: token } : {}),
       is_active: 1
     })
-    showToast(`Lưu cấu hình ${appName} thành công!`, 'success')
     document.getElementById(`dirtyHint_${id}`)?.classList.add('hidden')
-  } catch(e) { showToast('Lỗi lưu cấu hình', 'error') }
+    if (!silent) showToast(`Đã lưu cấu hình ${appName}`, 'success')
+    return true
+  } catch(e) {
+    if (!silent) showToast('Lỗi lưu cấu hình: ' + (e.response?.data?.error || e.message), 'error')
+    return false
+  }
 }
 
 async function testConnection(appName, sourceId) {
-  // Save first
-  await saveSource(sourceId, appName)
+  // Lưu im lặng trước — nếu thiếu trường bắt buộc sẽ báo lỗi
+  const saved = await saveSource(sourceId, appName, true)
+  if (!saved) { showToast('Vui lòng nhập đủ Account ID và Database ID trước', 'error'); return }
   const btn = document.getElementById(`testBtn_${appName}`)
   const icon = document.getElementById(`testIcon_${appName}`)
   const resultDiv = document.getElementById(`testResult_${appName}`)
@@ -1359,8 +1388,9 @@ async function testConnection(appName, sourceId) {
 }
 
 async function syncSource(appName, sourceId) {
-  // Save config first
-  await saveSource(sourceId, appName)
+  // Lưu im lặng — không toast khi sync, chỉ báo lỗi nếu thiếu field bắt buộc
+  const saved = await saveSource(sourceId, appName, true)
+  if (!saved) { showToast('Vui lòng nhập đủ Account ID và Database ID trước', 'error'); return }
   const btn = document.getElementById(`syncBtn_${appName}`)
   const icon = document.getElementById(`syncIcon_${appName}`)
   btn.disabled = true
