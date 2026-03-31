@@ -105,13 +105,13 @@ function showToast(msg, type = 'success', duration = 4000) {
 // ===== MODAL =====
 function showModal(title, content, footer = '') {
   const html = `<div class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4" id="modalOverlay" onclick="if(event.target===this)closeModal()">
-    <div class="modal-content bg-white w-full max-w-2xl shadow-2xl" style="max-height:90vh;overflow-y:auto">
-      <div class="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10">
-        <h3 class="font-semibold text-gray-800">${title}</h3>
-        <button onclick="closeModal()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500"><i class="fas fa-times"></i></button>
+    <div class="modal-content bg-white w-full shadow-2xl" style="max-width:680px">
+      <div class="modal-header sticky top-0 bg-white z-10 flex items-center justify-between" style="padding:16px 24px;border-bottom:1px solid #e2e8f0">
+        <h3 style="font-size:15px;font-weight:700;color:#0f172a;line-height:1.3">${title}</h3>
+        <button onclick="closeModal()" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:none;border:none;cursor:pointer;color:#64748b;font-size:14px" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='none'"><i class="fas fa-times"></i></button>
       </div>
-      <div class="p-6">${content}</div>
-      ${footer ? `<div class="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">${footer}</div>` : ''}
+      <div style="padding:20px 24px">${content}</div>
+      ${footer ? `<div style="padding:12px 24px;border-top:1px solid #e2e8f0;background:#f8fafc;display:flex;justify-content:flex-end;gap:10px">${footer}</div>` : ''}
     </div>
   </div>`
   document.getElementById('modalContainer').innerHTML = html
@@ -147,8 +147,8 @@ async function renderDashboard() {
     const s = d.stats
 
     // Update badges
-    if (s.expiring_contracts > 0) { document.getElementById('contractBadge').textContent = s.expiring_contracts; document.getElementById('contractBadge').classList.remove('hidden') }
-    if (s.urgent_reminders > 0) { document.getElementById('reminderBadge').textContent = s.urgent_reminders; document.getElementById('reminderBadge').classList.remove('hidden') }
+    if (s.expiring_contracts > 0) { document.getElementById('contractBadge').textContent = s.expiring_contracts; document.getElementById('contractBadge').style.display = 'inline-block' }
+    if (s.urgent_reminders > 0) { document.getElementById('reminderBadge').textContent = s.urgent_reminders; document.getElementById('reminderBadge').style.display = 'inline-block' }
 
     document.getElementById('pageContent').innerHTML = `
     <div class="space-y-6">
@@ -410,121 +410,110 @@ async function showEmployeeDetail(id) {
     const r = await API.get(`/api/employees/${id}`)
     const { employee: e, contracts, leaves, history } = r.data
     showModal(`Chi tiết nhân viên: ${e.full_name}`, `
-    <div class="space-y-4">
+    <div>
       <!-- Tabs -->
-      <div class="flex gap-2 border-b pb-2">
-        <button class="tab-btn active" onclick="switchTab('tab-info')">Thông tin cơ bản</button>
-        <button class="tab-btn" onclick="switchTab('tab-hcns')">Thông tin HCNS</button>
-        <button class="tab-btn" onclick="switchTab('tab-contracts')">Hợp đồng (${contracts.length})</button>
-        <button class="tab-btn" onclick="switchTab('tab-history')">Lịch sử</button>
+      <div style="display:flex;gap:4px;border-bottom:1px solid #e2e8f0;padding-bottom:12px;margin-bottom:16px;flex-wrap:wrap">
+        <button class="tab-btn active" onclick="switchTab('tab-info')"><i class="fas fa-id-card" style="margin-right:5px"></i>Cơ bản</button>
+        <button class="tab-btn" onclick="switchTab('tab-hcns')"><i class="fas fa-file-alt" style="margin-right:5px"></i>Hồ sơ HCNS</button>
+        <button class="tab-btn" onclick="switchTab('tab-contracts')"><i class="fas fa-file-contract" style="margin-right:5px"></i>Hợp đồng (${contracts.length})</button>
+        <button class="tab-btn" onclick="switchTab('tab-history')"><i class="fas fa-history" style="margin-right:5px"></i>Lịch sử</button>
       </div>
 
       <!-- Tab: Thông tin cơ bản -->
       <div id="tab-info">
-        <div class="grid grid-cols-2 gap-4">
-          <div class="bg-gray-50 p-3 rounded-lg">
-            <div class="text-xs text-gray-500 mb-1">Mã nhân viên</div>
-            <div class="font-medium">${e.employee_code || '—'}</div>
+        <!-- Header info strip -->
+        <div style="background:linear-gradient(135deg,#f0f7ff,#e8f8ef);border-radius:10px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:14px">
+          <div style="width:48px;height:48px;border-radius:50%;background:${e.source_app==='BIM'?'#0066CC':e.source_app==='C3D'?'#00A651':'#FF6B00'};display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:700;flex-shrink:0">${e.full_name.charAt(0)}</div>
+          <div style="flex:1">
+            <div style="font-size:16px;font-weight:700;color:#0f172a">${e.full_name}</div>
+            <div style="font-size:12px;color:#64748b;margin-top:2px">${e.position||''} ${e.department?'· '+e.department:''}</div>
           </div>
-          <div class="bg-gray-50 p-3 rounded-lg">
-            <div class="text-xs text-gray-500 mb-1">Nguồn dữ liệu</div>
-            <div>${srcBadge(e.source_app)}</div>
+          <div style="text-align:right">
+            ${srcBadge(e.source_app)}
+            <div style="margin-top:4px"><span class="${e.is_active ? 'badge-active' : 'badge-inactive'}">${e.is_active ? 'Đang làm việc' : 'Đã nghỉ việc'}</span></div>
           </div>
-          <div class="bg-gray-50 p-3 rounded-lg">
-            <div class="text-xs text-gray-500 mb-1">Họ và tên</div>
-            <div class="font-medium">${e.full_name}</div>
-          </div>
-          <div class="bg-gray-50 p-3 rounded-lg">
-            <div class="text-xs text-gray-500 mb-1">Username</div>
-            <div>${e.username}</div>
-          </div>
-          <div class="bg-gray-50 p-3 rounded-lg">
-            <div class="text-xs text-gray-500 mb-1">Email</div>
-            <div>${e.email || '—'}</div>
-          </div>
-          <div class="bg-gray-50 p-3 rounded-lg">
-            <div class="text-xs text-gray-500 mb-1">Điện thoại</div>
-            <div>${e.phone || '—'}</div>
-          </div>
-          <div class="bg-gray-50 p-3 rounded-lg">
-            <div class="text-xs text-gray-500 mb-1">Phòng ban</div>
-            <div>${e.department || '—'}</div>
-          </div>
-          <div class="bg-gray-50 p-3 rounded-lg">
-            <div class="text-xs text-gray-500 mb-1">Chức danh</div>
-            <div>${e.position || '—'}</div>
-          </div>
-          <div class="bg-gray-50 p-3 rounded-lg">
-            <div class="text-xs text-gray-500 mb-1">Lương tháng</div>
-            <div class="font-medium text-green-700">${fmtMoney(e.salary_monthly)}</div>
-          </div>
-          <div class="bg-gray-50 p-3 rounded-lg">
-            <div class="text-xs text-gray-500 mb-1">Trạng thái</div>
-            <span class="${e.is_active ? 'badge-active' : 'badge-inactive'}">${e.is_active ? 'Đang làm việc' : 'Đã nghỉ việc'}</span>
-          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="info-cell"><div class="lbl">Mã nhân viên</div><div class="val" style="font-family:monospace">${e.employee_code || '—'}</div></div>
+          <div class="info-cell"><div class="lbl">Username</div><div class="val">${e.username}</div></div>
+          <div class="info-cell"><div class="lbl">Email</div><div class="val">${e.email || '—'}</div></div>
+          <div class="info-cell"><div class="lbl">Điện thoại</div><div class="val">${e.phone || '—'}</div></div>
+          <div class="info-cell"><div class="lbl">Phòng ban</div><div class="val">${e.department || '—'}</div></div>
+          <div class="info-cell"><div class="lbl">Chức danh</div><div class="val">${e.position || '—'}</div></div>
+          <div class="info-cell" style="grid-column:span 2"><div class="lbl">Lương tháng</div><div class="val" style="color:#00A651;font-weight:700;font-size:15px">${fmtMoney(e.salary_monthly)}</div></div>
         </div>
       </div>
 
       <!-- Tab: HCNS -->
       <div id="tab-hcns" class="hidden">
-        <!-- Nhóm: Cá nhân -->
-        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Thông tin cá nhân</div>
-        <div class="grid grid-cols-2 gap-3 mb-4">
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Ngày sinh</div><div class="text-sm text-gray-800">${fmtDate(e.date_of_birth)}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Giới tính</div><div class="text-sm text-gray-800">${e.gender || '—'}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">CMND/CCCD</div><div class="text-sm text-gray-800">${e.id_number || '—'}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Ngày cấp / Nơi cấp</div><div class="text-sm text-gray-800">${e.id_issue_date ? fmtDate(e.id_issue_date) + (e.id_issue_place ? ' · ' + e.id_issue_place : '') : '—'}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg col-span-2"><div class="text-xs text-gray-500 mb-1">Địa chỉ thường trú</div><div class="text-sm text-gray-800">${e.address || '—'}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg col-span-2"><div class="text-xs text-gray-500 mb-1">Nơi ở hiện tại</div><div class="text-sm text-gray-800">${e.current_address || '—'}</div></div>
+        <!-- Thông tin cá nhân -->
+        <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;padding:4px 0 8px;border-bottom:1px solid #e2e8f0;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+          <span style="width:3px;height:14px;background:#0066CC;border-radius:2px;display:inline-block"></span>Thông tin cá nhân
         </div>
-        <!-- Nhóm: Công việc -->
-        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Thông tin công việc</div>
-        <div class="grid grid-cols-2 gap-3 mb-4">
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Ngày vào công ty</div><div class="text-sm text-gray-800">${fmtDate(e.join_date)}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Ngày ký HĐ chính thức</div><div class="text-sm text-gray-800">${fmtDate(e.official_start)}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Thử việc từ</div><div class="text-sm text-gray-800">${fmtDate(e.probation_start)}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Thử việc đến</div><div class="text-sm text-gray-800">${fmtDate(e.probation_end)}</div></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div class="info-cell"><div class="lbl">Ngày sinh</div><div class="val">${fmtDate(e.date_of_birth)}</div></div>
+          <div class="info-cell"><div class="lbl">Giới tính</div><div class="val">${e.gender || '—'}</div></div>
+          <div class="info-cell"><div class="lbl">CMND / CCCD</div><div class="val" style="font-family:monospace">${e.id_number || '—'}</div></div>
+          <div class="info-cell"><div class="lbl">Ngày cấp · Nơi cấp</div><div class="val">${e.id_issue_date ? fmtDate(e.id_issue_date)+(e.id_issue_place?' · '+e.id_issue_place:'') : '—'}</div></div>
+          <div class="info-cell" style="grid-column:span 2"><div class="lbl">Địa chỉ thường trú</div><div class="val">${e.address || '—'}</div></div>
+          <div class="info-cell" style="grid-column:span 2"><div class="lbl">Nơi ở hiện tại</div><div class="val">${e.current_address || '—'}</div></div>
         </div>
-        <!-- Nhóm: Học vấn -->
-        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Học vấn</div>
-        <div class="grid grid-cols-2 gap-3 mb-4">
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Trình độ</div><div class="text-sm text-gray-800">${e.education || '—'}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Năm tốt nghiệp</div><div class="text-sm text-gray-800">${e.graduation_year || '—'}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg col-span-2"><div class="text-xs text-gray-500 mb-1">Chuyên ngành</div><div class="text-sm text-gray-800">${e.major || '—'}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg col-span-2"><div class="text-xs text-gray-500 mb-1">Trường đại học</div><div class="text-sm text-gray-800">${e.university || '—'}</div></div>
+
+        <!-- Công việc -->
+        <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;padding:4px 0 8px;border-bottom:1px solid #e2e8f0;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+          <span style="width:3px;height:14px;background:#00A651;border-radius:2px;display:inline-block"></span>Thông tin công việc
         </div>
-        <!-- Nhóm: Bảo hiểm & Ngân hàng -->
-        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Bảo hiểm & Ngân hàng</div>
-        <div class="grid grid-cols-2 gap-3 mb-4">
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Số BHXH</div><div class="text-sm text-gray-800">${e.social_insurance || '—'}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Số BHYT</div><div class="text-sm text-gray-800">${e.health_insurance || '—'}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Mã số thuế</div><div class="text-sm text-gray-800">${e.tax_code || '—'}</div></div>
-          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Tài khoản ngân hàng</div><div class="text-sm text-gray-800">${e.bank_account ? e.bank_account + (e.bank_name ? ' · ' + e.bank_name : '') + (e.bank_branch ? ' · ' + e.bank_branch : '') : '—'}</div></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div class="info-cell"><div class="lbl">Ngày vào công ty</div><div class="val">${fmtDate(e.join_date)}</div></div>
+          <div class="info-cell"><div class="lbl">Ký HĐ chính thức</div><div class="val">${fmtDate(e.official_start)}</div></div>
+          <div class="info-cell"><div class="lbl">Thử việc từ</div><div class="val">${fmtDate(e.probation_start)}</div></div>
+          <div class="info-cell"><div class="lbl">Thử việc đến</div><div class="val">${fmtDate(e.probation_end)}</div></div>
         </div>
-        <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-lg text-sm text-yellow-800" style="${e.notes?'':'display:none'}">
-          <i class="fas fa-sticky-note mr-2"></i>${e.notes}
+
+        <!-- Học vấn -->
+        <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;padding:4px 0 8px;border-bottom:1px solid #e2e8f0;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+          <span style="width:3px;height:14px;background:#7c3aed;border-radius:2px;display:inline-block"></span>Học vấn
         </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div class="info-cell"><div class="lbl">Trình độ</div><div class="val">${e.education || '—'}</div></div>
+          <div class="info-cell"><div class="lbl">Năm tốt nghiệp</div><div class="val">${e.graduation_year || '—'}</div></div>
+          <div class="info-cell" style="grid-column:span 2"><div class="lbl">Chuyên ngành</div><div class="val">${e.major || '—'}</div></div>
+          <div class="info-cell" style="grid-column:span 2"><div class="lbl">Trường đại học / học viện</div><div class="val">${e.university || '—'}</div></div>
+        </div>
+
+        <!-- Bảo hiểm & Ngân hàng -->
+        <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;padding:4px 0 8px;border-bottom:1px solid #e2e8f0;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+          <span style="width:3px;height:14px;background:#FF6B00;border-radius:2px;display:inline-block"></span>Bảo hiểm & Ngân hàng
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div class="info-cell"><div class="lbl">Số BHXH</div><div class="val">${e.social_insurance || '—'}</div></div>
+          <div class="info-cell"><div class="lbl">Số BHYT</div><div class="val">${e.health_insurance || '—'}</div></div>
+          <div class="info-cell"><div class="lbl">Mã số thuế</div><div class="val">${e.tax_code || '—'}</div></div>
+          <div class="info-cell"><div class="lbl">Tài khoản NH</div><div class="val">${e.bank_account ? e.bank_account+(e.bank_name?' · '+e.bank_name:'')+(e.bank_branch?' · '+e.bank_branch:'') : '—'}</div></div>
+        </div>
+        ${e.notes ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;font-size:13px;color:#92400e"><i class="fas fa-sticky-note" style="margin-right:6px;color:#d97706"></i>${e.notes}</div>` : ''}
       </div>
 
       <!-- Tab: Contracts -->
       <div id="tab-contracts" class="hidden">
-        <div class="flex justify-end mb-3">
-          <button onclick="closeModal();showAddContractModal(${e.id},'${e.full_name}')" class="btn-secondary text-sm"><i class="fas fa-plus mr-1"></i>Thêm HĐ</button>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+          <button onclick="closeModal();showAddContractModal(${e.id},'${e.full_name}')" class="btn-secondary" style="font-size:13px;padding:7px 14px"><i class="fas fa-plus"></i>Thêm HĐ</button>
         </div>
-        ${contracts.length === 0 ? '<p class="text-center text-gray-400 py-6">Chưa có hợp đồng nào</p>' :
+        ${contracts.length === 0 ? '<div style="text-align:center;padding:32px;color:#94a3b8;font-size:13px"><i class="fas fa-file-contract" style="font-size:28px;margin-bottom:8px;display:block;opacity:0.4"></i>Chưa có hợp đồng nào</div>' :
         contracts.map(c => {
           const days = c.end_date ? daysDiff(c.end_date) : null
-          const statusColor = c.status === 'active' ? 'border-green-500 bg-green-50' : 'border-gray-300 bg-gray-50'
-          return `<div class="border-l-4 p-4 rounded-r-lg mb-3 ${statusColor}">
-            <div class="flex items-start justify-between">
+          const borderColor = c.status === 'active' ? '#00A651' : '#9ca3af'
+          return `<div style="border-left:4px solid ${borderColor};padding:12px 14px;border-radius:0 8px 8px 0;margin-bottom:10px;background:${c.status==='active'?'#f0fdf4':'#f9fafb'}">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
               <div>
-                <div class="font-semibold">${c.contract_number}</div>
-                <div class="text-sm text-gray-600">${contractTypeName(c.contract_type)} · ${fmtMoney(c.salary)}</div>
-                <div class="text-xs text-gray-500 mt-1">${fmtDate(c.start_date)} → ${c.end_date ? fmtDate(c.end_date) : 'Vô thời hạn'}</div>
+                <div style="font-size:14px;font-weight:700;color:#0f172a">${c.contract_number}</div>
+                <div style="font-size:12px;color:#64748b;margin-top:3px">${contractTypeName(c.contract_type)} · ${fmtMoney(c.salary)}</div>
+                <div style="font-size:11px;color:#94a3b8;margin-top:4px"><i class="fas fa-calendar-alt" style="margin-right:4px"></i>${fmtDate(c.start_date)} → ${c.end_date ? fmtDate(c.end_date) : 'Vô thời hạn'}</div>
               </div>
-              <div class="text-right">
+              <div style="text-align:right">
                 <span class="badge-${c.status==='active'?'active':'inactive'}">${c.status==='active'?'Hiệu lực':'Hết hiệu lực'}</span>
-                ${days !== null ? `<div class="text-xs mt-1 ${days<=30?'text-orange-600 font-medium':'text-gray-500'}">${days > 0 ? 'Còn '+days+' ngày' : 'Đã hết hạn'}</div>` : ''}
+                ${days !== null ? `<div style="font-size:11px;margin-top:5px;${days<=30?'color:#ea580c;font-weight:700':'color:#64748b'}">${days > 0 ? 'Còn '+days+' ngày' : 'Đã hết hạn'}</div>` : ''}
               </div>
             </div>
           </div>`}).join('')}
@@ -532,18 +521,18 @@ async function showEmployeeDetail(id) {
 
       <!-- Tab: History -->
       <div id="tab-history" class="hidden">
-        ${history.length === 0 ? '<p class="text-center text-gray-400 py-6">Chưa có lịch sử thay đổi</p>' :
-        history.map(h => `<div class="flex gap-3 text-sm border-b pb-3 mb-3">
-          <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0"><i class="fas fa-history text-blue-500 text-xs"></i></div>
-          <div>
-            <div class="text-gray-800"><strong>${h.field_changed}</strong>: <span class="text-red-500 line-through">${h.old_value||'—'}</span> → <span class="text-green-600">${h.new_value||'—'}</span></div>
-            <div class="text-xs text-gray-500">bởi ${h.changed_by_name} · ${dayjs(h.created_at).format('DD/MM/YYYY HH:mm')}</div>
+        ${history.length === 0 ? '<div style="text-align:center;padding:32px;color:#94a3b8;font-size:13px"><i class="fas fa-history" style="font-size:28px;margin-bottom:8px;display:block;opacity:0.4"></i>Chưa có lịch sử thay đổi</div>' :
+        history.map(h => `<div style="display:flex;gap:12px;padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid #f1f5f9">
+          <div style="width:32px;height:32px;background:#eff6ff;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-edit" style="font-size:12px;color:#3b82f6"></i></div>
+          <div style="flex:1">
+            <div style="font-size:13px;color:#334155"><strong style="color:#0f172a">${h.field_changed}</strong>: <span style="color:#ef4444;text-decoration:line-through">${h.old_value||'—'}</span> → <span style="color:#00A651">${h.new_value||'—'}</span></div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:3px">bởi ${h.changed_by_name} · ${dayjs(h.created_at).format('DD/MM/YYYY HH:mm')}</div>
           </div>
         </div>`).join('')}
       </div>
     </div>`,
-    `<button onclick="closeModal();showEditEmployee(${e.id})" class="btn-primary"><i class="fas fa-edit mr-2"></i>Chỉnh sửa HCNS</button>
-     <button onclick="closeModal()" class="px-4 py-2 bg-gray-100 rounded-lg text-gray-700 hover:bg-gray-200">Đóng</button>`)
+    `<button onclick="closeModal();showEditEmployee(${e.id})" class="btn-primary"><i class="fas fa-edit"></i>Chỉnh sửa HCNS</button>
+     <button onclick="closeModal()" class="btn-ghost">Đóng</button>`)
   } catch(e) { showToast('Lỗi tải chi tiết', 'error') }
 }
 
@@ -558,68 +547,76 @@ async function showEditEmployee(id) {
   try {
     const r = await API.get(`/api/employees/${id}`)
     const e = r.data.employee
+    const lbl = (text) => `<label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">${text}</label>`
     showModal(`Chỉnh sửa thông tin HCNS: ${e.full_name}`, `
-    <form id="editEmpForm" class="space-y-4">
-      <div class="grid grid-cols-2 gap-4">
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Mã nhân viên HCNS</label>
-          <input name="employee_code" value="${e.employee_code||''}"></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Chức danh</label>
-          <input name="position" value="${e.position||''}"></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Ngày sinh</label>
-          <input type="date" name="date_of_birth" value="${e.date_of_birth||''}"></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Giới tính</label>
-          <select name="gender"><option value="">—</option><option ${e.gender==='Nam'?'selected':''}>Nam</option><option ${e.gender==='Nữ'?'selected':''}>Nữ</option><option ${e.gender==='Khác'?'selected':''}>Khác</option></select></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">CMND/CCCD</label>
-          <input name="id_number" value="${e.id_number||''}"></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Số điện thoại</label>
-          <input name="phone" value="${e.phone||''}"></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Ngày vào công ty</label>
-          <input type="date" name="join_date" value="${e.join_date||''}"></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Bắt đầu thử việc</label>
-          <input type="date" name="probation_start" value="${e.probation_start||''}"></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Kết thúc thử việc</label>
-          <input type="date" name="probation_end" value="${e.probation_end||''}"></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Ngày ký HĐ chính thức</label>
-          <input type="date" name="official_start" value="${e.official_start||''}"></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Trình độ học vấn</label>
-          <select name="education"><option value="">—</option><option ${e.education==='Trung học'?'selected':''}>Trung học</option><option ${e.education==='Trung cấp'?'selected':''}>Trung cấp</option><option ${e.education==='Cao đẳng'?'selected':''}>Cao đẳng</option><option ${e.education==='Đại học'?'selected':''}>Đại học</option><option ${e.education==='Thạc sĩ'?'selected':''}>Thạc sĩ</option><option ${e.education==='Tiến sĩ'?'selected':''}>Tiến sĩ</option></select></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Chuyên ngành</label>
-          <input name="major" value="${e.major||''}"></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Trường đại học</label>
-          <input name="university" value="${e.university||''}" placeholder="VD: ĐH Bách Khoa Hà Nội"></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Năm tốt nghiệp</label>
-          <input type="number" name="graduation_year" value="${e.graduation_year||''}" placeholder="VD: 2015" min="1980" max="2099"></div>
+    <form id="editEmpForm">
+      <!-- Section: Công việc -->
+      <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;padding:0 0 8px;border-bottom:1px solid #e2e8f0;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+        <span style="width:3px;height:14px;background:#00A651;border-radius:2px;display:inline-block"></span>Thông tin công việc
       </div>
-      <hr>
-      <div class="text-xs font-semibold text-gray-500 uppercase">Bảo hiểm & Thuế</div>
-      <div class="grid grid-cols-2 gap-4">
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Số BHXH</label>
-          <input name="social_insurance" value="${e.social_insurance||''}"></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Số BHYT</label>
-          <input name="health_insurance" value="${e.health_insurance||''}"></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Mã số thuế</label>
-          <input name="tax_code" value="${e.tax_code||''}"></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Số CMND - Ngày cấp</label>
-          <div class="flex gap-2"><input name="id_issue_date" type="date" value="${e.id_issue_date||''}" placeholder="Ngày cấp">
-          <input name="id_issue_place" value="${e.id_issue_place||''}" placeholder="Nơi cấp"></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div>${lbl('Mã nhân viên HCNS')}<input name="employee_code" value="${e.employee_code||''}"></div>
+        <div>${lbl('Chức danh')}<input name="position" value="${e.position||''}"></div>
+        <div>${lbl('Ngày vào công ty')}<input type="date" name="join_date" value="${e.join_date||''}"></div>
+        <div>${lbl('Bắt đầu thử việc')}<input type="date" name="probation_start" value="${e.probation_start||''}"></div>
+        <div>${lbl('Kết thúc thử việc')}<input type="date" name="probation_end" value="${e.probation_end||''}"></div>
+        <div>${lbl('Ngày ký HĐ chính thức')}<input type="date" name="official_start" value="${e.official_start||''}"></div>
+        <div>${lbl('Số điện thoại')}<input name="phone" value="${e.phone||''}"></div>
+        <div>${lbl('Giới tính')}
+          <select name="gender"><option value="">— Chọn —</option><option ${e.gender==='Nam'?'selected':''}>Nam</option><option ${e.gender==='Nữ'?'selected':''}>Nữ</option><option ${e.gender==='Khác'?'selected':''}>Khác</option></select></div>
       </div>
-      <hr>
-      <div class="text-xs font-semibold text-gray-500 uppercase">Tài khoản ngân hàng</div>
-      <div class="grid grid-cols-3 gap-4">
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Số tài khoản</label>
-          <input name="bank_account" value="${e.bank_account||''}"></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Tên ngân hàng</label>
-          <input name="bank_name" value="${e.bank_name||''}"></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Chi nhánh</label>
-          <input name="bank_branch" value="${e.bank_branch||''}"></div>
+
+      <!-- Section: Cá nhân -->
+      <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;padding:0 0 8px;border-bottom:1px solid #e2e8f0;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+        <span style="width:3px;height:14px;background:#0066CC;border-radius:2px;display:inline-block"></span>Thông tin cá nhân
       </div>
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Địa chỉ thường trú</label>
-        <input name="address" value="${e.address||''}"></div>
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Ghi chú HCNS</label>
-        <textarea name="notes" rows="2">${e.notes||''}</textarea></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div>${lbl('Ngày sinh')}<input type="date" name="date_of_birth" value="${e.date_of_birth||''}"></div>
+        <div>${lbl('CMND / CCCD')}<input name="id_number" value="${e.id_number||''}"></div>
+        <div>${lbl('Ngày cấp CMND')}<input name="id_issue_date" type="date" value="${e.id_issue_date||''}"></div>
+        <div>${lbl('Nơi cấp')}<input name="id_issue_place" value="${e.id_issue_place||''}" placeholder="VD: Hà Nội"></div>
+        <div style="grid-column:span 2">${lbl('Địa chỉ thường trú')}<input name="address" value="${e.address||''}"></div>
+        <div style="grid-column:span 2">${lbl('Nơi ở hiện tại')}<input name="current_address" value="${e.current_address||''}"></div>
+      </div>
+
+      <!-- Section: Học vấn -->
+      <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;padding:0 0 8px;border-bottom:1px solid #e2e8f0;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+        <span style="width:3px;height:14px;background:#7c3aed;border-radius:2px;display:inline-block"></span>Học vấn
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div>${lbl('Trình độ học vấn')}
+          <select name="education"><option value="">— Chọn —</option><option ${e.education==='Trung học'?'selected':''}>Trung học</option><option ${e.education==='Trung cấp'?'selected':''}>Trung cấp</option><option ${e.education==='Cao đẳng'?'selected':''}>Cao đẳng</option><option ${e.education==='Đại học'?'selected':''}>Đại học</option><option ${e.education==='Thạc sĩ'?'selected':''}>Thạc sĩ</option><option ${e.education==='Tiến sĩ'?'selected':''}>Tiến sĩ</option></select></div>
+        <div>${lbl('Năm tốt nghiệp')}<input type="number" name="graduation_year" value="${e.graduation_year||''}" placeholder="VD: 2015" min="1970" max="2099"></div>
+        <div style="grid-column:span 2">${lbl('Chuyên ngành')}<input name="major" value="${e.major||''}" placeholder="VD: Kỹ thuật xây dựng"></div>
+        <div style="grid-column:span 2">${lbl('Trường đại học / học viện')}<input name="university" value="${e.university||''}" placeholder="VD: ĐH Bách Khoa Hà Nội"></div>
+      </div>
+
+      <!-- Section: Bảo hiểm & Thuế -->
+      <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;padding:0 0 8px;border-bottom:1px solid #e2e8f0;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+        <span style="width:3px;height:14px;background:#FF6B00;border-radius:2px;display:inline-block"></span>Bảo hiểm & Thuế
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div>${lbl('Số BHXH')}<input name="social_insurance" value="${e.social_insurance||''}"></div>
+        <div>${lbl('Số BHYT')}<input name="health_insurance" value="${e.health_insurance||''}"></div>
+        <div style="grid-column:span 2">${lbl('Mã số thuế')}<input name="tax_code" value="${e.tax_code||''}"></div>
+      </div>
+
+      <!-- Section: Ngân hàng -->
+      <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;padding:0 0 8px;border-bottom:1px solid #e2e8f0;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+        <span style="width:3px;height:14px;background:#0891b2;border-radius:2px;display:inline-block"></span>Tài khoản ngân hàng
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px">
+        <div>${lbl('Số tài khoản')}<input name="bank_account" value="${e.bank_account||''}"></div>
+        <div>${lbl('Tên ngân hàng')}<input name="bank_name" value="${e.bank_name||''}"></div>
+        <div>${lbl('Chi nhánh')}<input name="bank_branch" value="${e.bank_branch||''}"></div>
+      </div>
+
+      <!-- Ghi chú -->
+      <div>${lbl('Ghi chú HCNS')}
+        <textarea name="notes" rows="2" placeholder="Ghi chú nội bộ...">${e.notes||''}</textarea></div>
     </form>`,
-    `<button onclick="saveEmployee(${e.id})" class="btn-primary"><i class="fas fa-save mr-2"></i>Lưu thay đổi</button>
-     <button onclick="closeModal()" class="px-4 py-2 bg-gray-100 rounded-lg text-gray-700">Hủy</button>`)
+    `<button onclick="saveEmployee(${e.id})" class="btn-primary"><i class="fas fa-save"></i>Lưu thay đổi</button>
+     <button onclick="closeModal()" class="btn-ghost">Hủy</button>`)
   } catch(err) { showToast('Lỗi', 'error') }
 }
 
@@ -636,20 +633,22 @@ async function saveEmployee(id) {
 }
 
 function showAddEmployeeModal() {
+  const lbl = (text, req='') => `<label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">${text}${req?'<span style="color:#ef4444;margin-left:2px">*</span>':''}</label>`
   showModal('Thêm nhân viên thủ công', `
-  <form id="addEmpForm" class="space-y-4">
-    <div class="grid grid-cols-2 gap-4">
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Họ và tên *</label><input name="full_name" required placeholder="Nguyễn Văn A"></div>
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Email</label><input name="email" type="email"></div>
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Điện thoại</label><input name="phone"></div>
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Phòng ban</label><input name="department"></div>
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Chức danh</label><input name="position"></div>
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Ngày vào công ty</label><input name="join_date" type="date"></div>
+  <form id="addEmpForm">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div style="grid-column:span 2">${lbl('Họ và tên',true)}<input name="full_name" required placeholder="Nguyễn Văn A"></div>
+      <div>${lbl('Email')}<input name="email" type="email" placeholder="email@company.com"></div>
+      <div>${lbl('Điện thoại')}<input name="phone" placeholder="0912 345 678"></div>
+      <div>${lbl('Phòng ban')}<input name="department" placeholder="VD: Kết cấu, MEP..."></div>
+      <div>${lbl('Chức danh')}<input name="position" placeholder="VD: Kỹ sư xây dựng"></div>
+      <div>${lbl('Ngày vào công ty')}<input name="join_date" type="date"></div>
+      <div>${lbl('Lương tháng (₫)')}<input name="salary_monthly" type="number" placeholder="0"></div>
     </div>
-    <div><label class="text-xs font-medium text-gray-700 block mb-1">Ghi chú</label><textarea name="notes" rows="2"></textarea></div>
+    <div>${lbl('Ghi chú')}<textarea name="notes" rows="2" placeholder="Ghi chú về nhân viên..."></textarea></div>
   </form>`,
-  `<button onclick="addEmployee()" class="btn-primary"><i class="fas fa-plus mr-2"></i>Thêm nhân viên</button>
-   <button onclick="closeModal()" class="px-4 py-2 bg-gray-100 rounded-lg text-gray-700">Hủy</button>`)
+  `<button onclick="addEmployee()" class="btn-primary"><i class="fas fa-plus"></i>Thêm nhân viên</button>
+   <button onclick="closeModal()" class="btn-ghost">Hủy</button>`)
 }
 
 async function addEmployee() {
@@ -749,29 +748,31 @@ async function loadContracts() {
 }
 
 function showAddContractModal(empId, empName) {
+  const lbl = (text, req='') => `<label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">${text}${req?'<span style="color:#ef4444;margin-left:2px">*</span>':''}</label>`
   showModal(`Thêm hợp đồng: ${empName}`, `
-  <form id="addContractForm" class="space-y-4">
+  <form id="addContractForm">
     <input type="hidden" name="employee_id" value="${empId}">
-    <div class="grid grid-cols-2 gap-4">
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Số hợp đồng *</label><input name="contract_number" required placeholder="HĐ-2024-001"></div>
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Loại hợp đồng *</label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div>${lbl('Số hợp đồng',true)}<input name="contract_number" required placeholder="HĐ-2024-001"></div>
+      <div>${lbl('Loại hợp đồng',true)}
         <select name="contract_type">
           <option value="trial">Thử việc</option>
           <option value="fixed_term" selected>Có thời hạn</option>
           <option value="indefinite">Vô thời hạn</option>
           <option value="seasonal">Thời vụ</option>
         </select></div>
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Ngày bắt đầu *</label><input type="date" name="start_date" required></div>
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Ngày kết thúc</label><input type="date" name="end_date"></div>
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Mức lương (VNĐ)</label><input type="number" name="salary" placeholder="0"></div>
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Ngày ký</label><input type="date" name="signed_date"></div>
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Chức vụ trong HĐ</label><input name="position"></div>
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Nhắc trước (ngày)</label><input type="number" name="renewal_reminder_days" value="30"></div>
+      <div>${lbl('Ngày bắt đầu',true)}<input type="date" name="start_date" required></div>
+      <div>${lbl('Ngày kết thúc')}<input type="date" name="end_date"></div>
+      <div>${lbl('Mức lương (VNĐ)')}<input type="number" name="salary" placeholder="0" min="0"></div>
+      <div>${lbl('Ngày ký')}<input type="date" name="signed_date"></div>
+      <div>${lbl('Chức vụ trong HĐ')}<input name="position" placeholder="VD: Kỹ sư"></div>
+      <div>${lbl('Nhắc trước (ngày)')}<input type="number" name="renewal_reminder_days" value="30" min="1" max="365"></div>
     </div>
-    <div><label class="text-xs font-medium text-gray-700 block mb-1">Ghi chú</label><textarea name="notes" rows="2"></textarea></div>
+    <div>${lbl('Ghi chú')}
+      <textarea name="notes" rows="2" placeholder="Ghi chú hợp đồng..."></textarea></div>
   </form>`,
-  `<button onclick="saveNewContract()" class="btn-primary"><i class="fas fa-save mr-2"></i>Lưu hợp đồng</button>
-   <button onclick="closeModal()" class="px-4 py-2 bg-gray-100 rounded-lg text-gray-700">Hủy</button>`)
+  `<button onclick="saveNewContract()" class="btn-primary"><i class="fas fa-save"></i>Lưu hợp đồng</button>
+   <button onclick="closeModal()" class="btn-ghost">Hủy</button>`)
 }
 
 async function saveNewContract() {
@@ -792,22 +793,21 @@ async function showEditContractModal(id) {
     const r = await API.get('/api/contracts')
     const c = r.data.data.find(x => x.id === id)
     if (!c) return showToast('Không tìm thấy HĐ', 'error')
+    const lbl2 = (t) => `<label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">${t}</label>`
     showModal(`Chỉnh sửa hợp đồng: ${c.contract_number}`, `
-    <form id="editContractForm" class="space-y-4">
-      <div class="grid grid-cols-2 gap-4">
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Loại HĐ</label>
-          <select name="contract_type"><option value="trial" ${c.contract_type==='trial'?'selected':''}>Thử việc</option><option value="fixed_term" ${c.contract_type==='fixed_term'?'selected':''}>Có thời hạn</option><option value="indefinite" ${c.contract_type==='indefinite'?'selected':''}>Vô thời hạn</option></select></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Trạng thái</label>
-          <select name="status"><option value="active" ${c.status==='active'?'selected':''}>Hiệu lực</option><option value="expired" ${c.status==='expired'?'selected':''}>Hết hiệu lực</option><option value="terminated" ${c.status==='terminated'?'selected':''}>Chấm dứt</option><option value="renewed" ${c.status==='renewed'?'selected':''}>Đã gia hạn</option></select></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Ngày bắt đầu</label><input type="date" name="start_date" value="${c.start_date||''}"></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Ngày kết thúc</label><input type="date" name="end_date" value="${c.end_date||''}"></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Lương (VNĐ)</label><input type="number" name="salary" value="${c.salary||0}"></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Nhắc trước (ngày)</label><input type="number" name="renewal_reminder_days" value="${c.renewal_reminder_days||30}"></div>
+    <form id="editContractForm">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div>${lbl2('Loại HĐ')}<select name="contract_type"><option value="trial" ${c.contract_type==='trial'?'selected':''}>Thử việc</option><option value="fixed_term" ${c.contract_type==='fixed_term'?'selected':''}>Có thời hạn</option><option value="indefinite" ${c.contract_type==='indefinite'?'selected':''}>Vô thời hạn</option></select></div>
+        <div>${lbl2('Trạng thái')}<select name="status"><option value="active" ${c.status==='active'?'selected':''}>Hiệu lực</option><option value="expired" ${c.status==='expired'?'selected':''}>Hết hiệu lực</option><option value="terminated" ${c.status==='terminated'?'selected':''}>Chấm dứt</option><option value="renewed" ${c.status==='renewed'?'selected':''}>Đã gia hạn</option></select></div>
+        <div>${lbl2('Ngày bắt đầu')}<input type="date" name="start_date" value="${c.start_date||''}"></div>
+        <div>${lbl2('Ngày kết thúc')}<input type="date" name="end_date" value="${c.end_date||''}"></div>
+        <div>${lbl2('Lương (VNĐ)')}<input type="number" name="salary" value="${c.salary||0}"></div>
+        <div>${lbl2('Nhắc trước (ngày)')}<input type="number" name="renewal_reminder_days" value="${c.renewal_reminder_days||30}"></div>
       </div>
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Ghi chú</label><textarea name="notes" rows="2">${c.notes||''}</textarea></div>
+      <div>${lbl2('Ghi chú')}<textarea name="notes" rows="2">${c.notes||''}</textarea></div>
     </form>`,
-    `<button onclick="updateContract(${c.id})" class="btn-primary"><i class="fas fa-save mr-2"></i>Lưu</button>
-     <button onclick="closeModal()" class="px-4 py-2 bg-gray-100 rounded-lg text-gray-700">Hủy</button>`)
+    `<button onclick="updateContract(${c.id})" class="btn-primary"><i class="fas fa-save"></i>Lưu</button>
+     <button onclick="closeModal()" class="btn-ghost">Hủy</button>`)
   } catch(err) { showToast('Lỗi', 'error') }
 }
 
@@ -899,20 +899,20 @@ async function loadLeaves() {
 }
 
 function showAddLeaveModal() {
+  const lbl = (t, req='') => `<label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">${t}${req?'<span style="color:#ef4444;margin-left:2px">*</span>':''}</label>`
   showModal('Thêm đơn nghỉ phép', `
-  <form id="addLeaveForm" class="space-y-4">
-    <div><label class="text-xs font-medium text-gray-700 block mb-1">ID Nhân viên *</label><input name="employee_id" type="number" required placeholder="Nhập ID nhân viên"></div>
-    <div class="grid grid-cols-2 gap-4">
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Loại nghỉ</label>
-        <select name="leave_type"><option value="annual">Nghỉ phép năm</option><option value="sick">Nghỉ ốm đau</option><option value="unpaid">Không lương</option><option value="maternity">Thai sản</option><option value="other">Khác</option></select></div>
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Số ngày</label><input name="days" type="number" step="0.5" value="1"></div>
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Từ ngày *</label><input name="start_date" type="date" required></div>
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Đến ngày *</label><input name="end_date" type="date" required></div>
+  <form id="addLeaveForm">
+    <div style="margin-bottom:12px">${lbl('ID Nhân viên',true)}<input name="employee_id" type="number" required placeholder="Nhập ID nhân viên"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div>${lbl('Loại nghỉ')}<select name="leave_type"><option value="annual">Nghỉ phép năm</option><option value="sick">Nghỉ ốm đau</option><option value="unpaid">Không lương</option><option value="maternity">Thai sản</option><option value="other">Khác</option></select></div>
+      <div>${lbl('Số ngày')}<input name="days" type="number" step="0.5" value="1" min="0.5"></div>
+      <div>${lbl('Từ ngày',true)}<input name="start_date" type="date" required></div>
+      <div>${lbl('Đến ngày',true)}<input name="end_date" type="date" required></div>
     </div>
-    <div><label class="text-xs font-medium text-gray-700 block mb-1">Lý do</label><textarea name="reason" rows="2"></textarea></div>
+    <div>${lbl('Lý do')}<textarea name="reason" rows="2" placeholder="Lý do nghỉ phép..."></textarea></div>
   </form>`,
-  `<button onclick="addLeave()" class="btn-primary"><i class="fas fa-save mr-2"></i>Lưu</button>
-   <button onclick="closeModal()" class="px-4 py-2 bg-gray-100 rounded-lg text-gray-700">Hủy</button>`)
+  `<button onclick="addLeave()" class="btn-primary"><i class="fas fa-save"></i>Lưu đơn nghỉ</button>
+   <button onclick="closeModal()" class="btn-ghost">Hủy</button>`)
 }
 
 async function addLeave() {
@@ -1002,21 +1002,20 @@ async function loadReminders() {
 }
 
 function showAddReminderModal() {
+  const lbl = (t, req='') => `<label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">${t}${req?'<span style="color:#ef4444;margin-left:2px">*</span>':''}</label>`
   showModal('Thêm nhắc nhở HCNS', `
-  <form id="addReminderForm" class="space-y-4">
-    <div class="grid grid-cols-2 gap-4">
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Tiêu đề *</label><input name="title" required></div>
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Loại nhắc nhở</label>
-        <select name="reminder_type"><option value="contract_expiry">HĐ hết hạn</option><option value="probation_end">Hết thử việc</option><option value="birthday">Sinh nhật</option><option value="insurance">Bảo hiểm</option><option value="other" selected>Khác</option></select></div>
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Ngày nhắc *</label><input type="date" name="remind_date" required></div>
-      <div><label class="text-xs font-medium text-gray-700 block mb-1">Mức độ</label>
-        <select name="priority"><option value="low">Thấp</option><option value="medium" selected>Trung bình</option><option value="high">Cao</option><option value="urgent">Khẩn</option></select></div>
-      <div class="col-span-2"><label class="text-xs font-medium text-gray-700 block mb-1">ID Nhân viên (nếu có)</label><input name="employee_id" type="number"></div>
+  <form id="addReminderForm">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div style="grid-column:span 2">${lbl('Tiêu đề',true)}<input name="title" required placeholder="VD: HĐ ông Nguyễn Văn A hết hạn"></div>
+      <div>${lbl('Loại nhắc nhở')}<select name="reminder_type"><option value="contract_expiry">HĐ hết hạn</option><option value="probation_end">Hết thử việc</option><option value="birthday">Sinh nhật</option><option value="insurance">Bảo hiểm</option><option value="other" selected>Khác</option></select></div>
+      <div>${lbl('Mức độ')}<select name="priority"><option value="low">Thấp</option><option value="medium" selected>Trung bình</option><option value="high">Cao</option><option value="urgent">Khẩn</option></select></div>
+      <div>${lbl('Ngày nhắc',true)}<input type="date" name="remind_date" required></div>
+      <div>${lbl('ID Nhân viên (nếu có)')}<input name="employee_id" type="number" placeholder="Để trống nếu chung"></div>
     </div>
-    <div><label class="text-xs font-medium text-gray-700 block mb-1">Mô tả chi tiết</label><textarea name="description" rows="3"></textarea></div>
+    <div>${lbl('Mô tả chi tiết')}<textarea name="description" rows="3" placeholder="Ghi chú thêm..."></textarea></div>
   </form>`,
-  `<button onclick="addReminder()" class="btn-primary"><i class="fas fa-save mr-2"></i>Lưu</button>
-   <button onclick="closeModal()" class="px-4 py-2 bg-gray-100 rounded-lg text-gray-700">Hủy</button>`)
+  `<button onclick="addReminder()" class="btn-primary"><i class="fas fa-save"></i>Lưu nhắc nhở</button>
+   <button onclick="closeModal()" class="btn-ghost">Hủy</button>`)
 }
 
 async function addReminder() {
@@ -1411,26 +1410,32 @@ async function syncSource(appName, sourceId) {
 // ===== SETTINGS =====
 async function renderSettings() {
   document.getElementById('pageContent').innerHTML = `
-  <div class="space-y-6 max-w-2xl">
-    <div class="card p-6">
-      <h3 class="font-semibold text-gray-800 mb-4"><i class="fas fa-key text-blue-500 mr-2"></i>Đổi mật khẩu</h3>
-      <div class="space-y-4">
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Mật khẩu hiện tại</label><input type="password" id="oldPass"></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Mật khẩu mới</label><input type="password" id="newPass"></div>
-        <div><label class="text-xs font-medium text-gray-700 block mb-1">Xác nhận mật khẩu mới</label><input type="password" id="confirmPass"></div>
-        <button onclick="changePassword()" class="btn-primary"><i class="fas fa-save mr-2"></i>Đổi mật khẩu</button>
+  <div style="max-width:640px;display:flex;flex-direction:column;gap:20px">
+    <div class="card" style="padding:24px">
+      <div style="font-size:15px;font-weight:700;color:#0f172a;margin-bottom:16px;display:flex;align-items:center;gap:8px">
+        <i class="fas fa-key" style="color:#0066CC"></i>Đổi mật khẩu
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div><label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Mật khẩu hiện tại</label><input type="password" id="oldPass" placeholder="Nhập mật khẩu hiện tại"></div>
+        <div><label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Mật khẩu mới</label><input type="password" id="newPass" placeholder="Tối thiểu 6 ký tự"></div>
+        <div><label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Xác nhận mật khẩu mới</label><input type="password" id="confirmPass" placeholder="Nhập lại mật khẩu mới"></div>
+        <div><button onclick="changePassword()" class="btn-primary"><i class="fas fa-save"></i>Đổi mật khẩu</button></div>
       </div>
     </div>
     ${currentUser?.role === 'hr_admin' ? `
-    <div class="card p-6">
-      <h3 class="font-semibold text-gray-800 mb-4"><i class="fas fa-users-cog text-purple-500 mr-2"></i>Quản lý tài khoản HCNS</h3>
+    <div class="card" style="padding:24px">
+      <div style="font-size:15px;font-weight:700;color:#0f172a;margin-bottom:16px;display:flex;align-items:center;gap:8px">
+        <i class="fas fa-users-cog" style="color:#7c3aed"></i>Quản lý tài khoản HCNS
+      </div>
       <div id="hrUsersList"></div>
-      <button onclick="showAddHRUserModal()" class="btn-primary mt-4"><i class="fas fa-plus mr-2"></i>Thêm tài khoản</button>
+      <div style="margin-top:14px"><button onclick="showAddHRUserModal()" class="btn-primary"><i class="fas fa-plus"></i>Thêm tài khoản</button></div>
     </div>
-    <div class="card p-6">
-      <h3 class="font-semibold text-gray-800 mb-4"><i class="fas fa-database text-red-500 mr-2"></i>Khởi tạo lại hệ thống</h3>
-      <p class="text-sm text-gray-600 mb-4">Tạo lại toàn bộ cấu trúc database và tài khoản mặc định. Dữ liệu hiện tại sẽ KHÔNG bị xóa.</p>
-      <button onclick="initSystem()" class="btn-danger"><i class="fas fa-sync mr-2"></i>Khởi tạo hệ thống</button>
+    <div class="card" style="padding:24px">
+      <div style="font-size:15px;font-weight:700;color:#0f172a;margin-bottom:8px;display:flex;align-items:center;gap:8px">
+        <i class="fas fa-database" style="color:#ef4444"></i>Khởi tạo lại hệ thống
+      </div>
+      <p style="font-size:13px;color:#64748b;margin-bottom:14px">Tạo lại toàn bộ cấu trúc database và tài khoản mặc định. Dữ liệu hiện tại sẽ KHÔNG bị xóa.</p>
+      <button onclick="initSystem()" class="btn-danger"><i class="fas fa-sync"></i>Khởi tạo hệ thống</button>
     </div>` : ''}
   </div>`
 
@@ -1471,19 +1476,20 @@ async function loadHRUsers() {
 }
 
 function showAddHRUserModal() {
+  const lbl = (t, req='') => `<label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">${t}${req?'<span style="color:#ef4444;margin-left:2px">*</span>':''}</label>`
   showModal('Thêm tài khoản HCNS', `
-  <form id="addHRForm" class="space-y-4">
-    <div class="grid grid-cols-2 gap-4">
-      <div><label class="text-xs font-medium block mb-1">Tên đăng nhập *</label><input name="username" required></div>
-      <div><label class="text-xs font-medium block mb-1">Mật khẩu *</label><input name="password" type="password" required></div>
-      <div><label class="text-xs font-medium block mb-1">Họ và tên *</label><input name="full_name" required></div>
-      <div><label class="text-xs font-medium block mb-1">Email</label><input name="email" type="email"></div>
-      <div class="col-span-2"><label class="text-xs font-medium block mb-1">Phân quyền</label>
+  <form id="addHRForm">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div>${lbl('Tên đăng nhập',true)}<input name="username" required placeholder="VD: nguyen.van.a"></div>
+      <div>${lbl('Mật khẩu',true)}<input name="password" type="password" required placeholder="Tối thiểu 6 ký tự"></div>
+      <div>${lbl('Họ và tên',true)}<input name="full_name" required placeholder="Nguyễn Văn A"></div>
+      <div>${lbl('Email')}<input name="email" type="email" placeholder="email@company.com"></div>
+      <div style="grid-column:span 2">${lbl('Phân quyền')}
         <select name="role"><option value="hr_staff">Nhân viên HCNS</option><option value="hr_admin">Quản trị HCNS</option></select></div>
     </div>
   </form>`,
-  `<button onclick="addHRUser()" class="btn-primary"><i class="fas fa-save mr-2"></i>Tạo tài khoản</button>
-   <button onclick="closeModal()" class="px-4 py-2 bg-gray-100 rounded-lg text-gray-700">Hủy</button>`)
+  `<button onclick="addHRUser()" class="btn-primary"><i class="fas fa-save"></i>Tạo tài khoản</button>
+   <button onclick="closeModal()" class="btn-ghost">Hủy</button>`)
 }
 
 async function addHRUser() {

@@ -820,77 +820,201 @@ function getHTML(): string {
 <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-  :root { --primary: #00A651; --accent: #0066CC; --warning: #FF6B00; --danger: #EF4444; }
-  * { font-family: 'Segoe UI', system-ui, sans-serif; }
+  /* ===== DESIGN SYSTEM - ONCAD HCNS ===== */
+  :root {
+    --primary: #00A651; --primary-dark: #008C44; --primary-light: #e8f8ef;
+    --accent: #0066CC; --accent-light: #e8f1fb;
+    --warning: #FF6B00; --danger: #EF4444; --danger-light: #fef2f2;
+    --text-heading: #0f172a; --text-body: #334155; --text-muted: #64748b; --text-faint: #94a3b8;
+    --border: #e2e8f0; --border-focus: #00A651;
+    --bg-page: #f1f5f9; --bg-card: #ffffff; --bg-input: #ffffff; --bg-hover: #f8fafc;
+    --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px; --radius-xl: 16px;
+    --shadow-sm: 0 1px 4px rgba(0,0,0,0.06); --shadow-md: 0 2px 12px rgba(0,0,0,0.08); --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+    --font-size-xs: 11px; --font-size-sm: 12px; --font-size-base: 13px; --font-size-md: 14px; --font-size-lg: 15px; --font-size-xl: 16px;
+  }
+
+  /* ===== BASE ===== */
+  * { font-family: 'Segoe UI', -apple-system, system-ui, sans-serif; box-sizing: border-box; }
+  body { font-size: var(--font-size-base); color: var(--text-body); background: var(--bg-page); }
+
+  /* ===== LAYOUT ===== */
   .sidebar { background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%); }
-  .nav-item { transition: all 0.2s; border-radius: 8px; }
-  .nav-item:hover, .nav-item.active { background: rgba(0,166,81,0.2); color: #00A651; }
-  .nav-item.active { border-left: 3px solid #00A651; }
-  .card { background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); transition: box-shadow 0.2s; }
-  .card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.12); }
-  .btn-primary { background: #00A651; color: white; border-radius: 8px; padding: 8px 16px; transition: all 0.2s; }
-  .btn-primary:hover { background: #008C44; transform: translateY(-1px); }
-  .btn-secondary { background: #0066CC; color: white; border-radius: 8px; padding: 8px 16px; }
-  .btn-danger { background: #EF4444; color: white; border-radius: 8px; padding: 8px 16px; }
-  .badge-bim { background: #dbeafe; color: #1d4ed8; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-  .badge-c3d { background: #dcfce7; color: #15803d; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-  .badge-manual { background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-  .badge-active { background: #dcfce7; color: #15803d; padding: 2px 8px; border-radius: 20px; font-size: 11px; }
-  .badge-inactive { background: #fee2e2; color: #dc2626; padding: 2px 8px; border-radius: 20px; font-size: 11px; }
-  .badge-warning { background: #fef3c7; color: #d97706; padding: 2px 8px; border-radius: 20px; font-size: 11px; }
-  .kpi-card { border-radius: 12px; padding: 20px; color: white; }
-  .table-row:hover { background: #f8fafc; }
-  .modal-overlay { background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
-  .modal-content { border-radius: 16px; max-height: 90vh; overflow-y: auto; }
-  input, select, textarea { border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; width: 100%; transition: border 0.2s; }
-  input:focus, select:focus, textarea:focus { outline: none; border-color: #00A651; box-shadow: 0 0 0 3px rgba(0,166,81,0.1); }
-  .tab-btn { padding: 8px 16px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
-  .tab-btn.active { background: #00A651; color: white; }
-  .urgency-urgent { border-left: 4px solid #EF4444; }
-  .urgency-high { border-left: 4px solid #FF6B00; }
+  .nav-item { transition: all 0.2s; border-radius: var(--radius-md); font-size: var(--font-size-base); }
+  .nav-item:hover { background: rgba(0,166,81,0.15); color: #4ade80; }
+  .nav-item.active { background: rgba(0,166,81,0.22); color: #00A651; border-left: 3px solid #00A651; }
+  .card { background: var(--bg-card); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); transition: box-shadow 0.2s; }
+  .card:hover { box-shadow: var(--shadow-lg); }
+
+  /* ===== BUTTONS ===== */
+  .btn-primary {
+    background: var(--primary); color: #fff; border-radius: var(--radius-md);
+    padding: 8px 16px; font-size: var(--font-size-md); font-weight: 500;
+    line-height: 1.4; transition: all 0.2s; cursor: pointer; border: none;
+    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  }
+  .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,166,81,0.3); }
+  .btn-secondary {
+    background: var(--accent); color: #fff; border-radius: var(--radius-md);
+    padding: 8px 16px; font-size: var(--font-size-md); font-weight: 500;
+    cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-secondary:hover { background: #0052a3; }
+  .btn-danger {
+    background: var(--danger); color: #fff; border-radius: var(--radius-md);
+    padding: 8px 16px; font-size: var(--font-size-md); font-weight: 500;
+    cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-ghost {
+    background: transparent; color: var(--text-muted); border-radius: var(--radius-md);
+    padding: 8px 16px; font-size: var(--font-size-md); font-weight: 500;
+    cursor: pointer; border: 1.5px solid var(--border); display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-ghost:hover { background: var(--bg-hover); color: var(--text-heading); }
+
+  /* ===== BADGES ===== */
+  .badge-bim    { background: #dbeafe; color: #1d4ed8; padding: 2px 10px; border-radius: 20px; font-size: var(--font-size-xs); font-weight: 700; letter-spacing: 0.04em; display: inline-block; }
+  .badge-c3d    { background: #dcfce7; color: #15803d; padding: 2px 10px; border-radius: 20px; font-size: var(--font-size-xs); font-weight: 700; letter-spacing: 0.04em; display: inline-block; }
+  .badge-manual { background: #fef3c7; color: #b45309; padding: 2px 10px; border-radius: 20px; font-size: var(--font-size-xs); font-weight: 700; letter-spacing: 0.04em; display: inline-block; }
+  .badge-active   { background: #dcfce7; color: #15803d; padding: 2px 10px; border-radius: 20px; font-size: var(--font-size-xs); font-weight: 600; display: inline-block; }
+  .badge-inactive { background: #fee2e2; color: #dc2626; padding: 2px 10px; border-radius: 20px; font-size: var(--font-size-xs); font-weight: 600; display: inline-block; }
+  .badge-warning  { background: #fef3c7; color: #d97706; padding: 2px 10px; border-radius: 20px; font-size: var(--font-size-xs); font-weight: 600; display: inline-block; }
+
+  /* ===== KPI CARDS ===== */
+  .kpi-card { border-radius: var(--radius-lg); padding: 20px 24px; color: white; }
+
+  /* ===== TABLE ===== */
+  .table-row:hover { background: #f0f7ff; }
+  table { font-size: var(--font-size-base); }
+  thead th { font-size: var(--font-size-xs); font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px; }
+  tbody td { padding: 11px 14px; color: var(--text-body); vertical-align: middle; }
+
+  /* ===== MODAL ===== */
+  .modal-overlay { background: rgba(15,23,42,0.55); backdrop-filter: blur(4px); }
+  .modal-content { border-radius: var(--radius-xl); max-height: 92vh; overflow-y: auto; }
+  .modal-header { padding: 18px 24px; border-bottom: 1px solid var(--border); }
+  .modal-header h3 { font-size: var(--font-size-lg); font-weight: 700; color: var(--text-heading); }
+  .modal-body { padding: 20px 24px; }
+  .modal-footer { padding: 14px 24px; border-top: 1px solid var(--border); background: var(--bg-hover); }
+
+  /* ===== FORM CONTROLS ===== */
+  input, select, textarea {
+    border: 1.5px solid var(--border); border-radius: var(--radius-md);
+    padding: 8px 12px; width: 100%; font-size: var(--font-size-base); line-height: 1.5;
+    color: var(--text-heading); background: var(--bg-input);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    min-height: 38px;
+  }
+  input::placeholder, textarea::placeholder { color: var(--text-faint); font-size: var(--font-size-sm); }
+  input:focus, select:focus, textarea:focus {
+    outline: none; border-color: var(--border-focus); box-shadow: 0 0 0 3px rgba(0,166,81,0.12);
+  }
+  select { min-height: 38px; cursor: pointer; }
+  textarea { resize: vertical; min-height: 68px; }
+
+  /* Labels */
+  label, .field-label {
+    font-size: var(--font-size-sm); font-weight: 600; color: var(--text-muted);
+    display: block; margin-bottom: 4px; line-height: 1.4;
+  }
+
+  /* Form sections */
+  .form-section {
+    font-size: var(--font-size-xs); font-weight: 700; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 0.07em;
+    margin: 18px 0 10px; padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .form-section::before { content: ''; width: 3px; height: 14px; background: var(--primary); border-radius: 2px; flex-shrink: 0; }
+
+  /* ===== TABS ===== */
+  .tab-btn {
+    padding: 7px 14px; border-radius: var(--radius-md); cursor: pointer;
+    font-size: var(--font-size-base); font-weight: 500; transition: all 0.18s;
+    color: var(--text-muted); white-space: nowrap;
+  }
+  .tab-btn:hover { background: #f1f5f9; color: var(--text-heading); }
+  .tab-btn.active { background: var(--primary); color: white; box-shadow: 0 2px 8px rgba(0,166,81,0.3); }
+
+  /* ===== INFO CELLS (view mode) ===== */
+  .info-cell { background: var(--bg-hover); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px 14px; }
+  .info-cell .lbl { font-size: var(--font-size-xs); color: var(--text-faint); font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .info-cell .val { font-size: var(--font-size-base); color: var(--text-heading); font-weight: 500; line-height: 1.4; }
+
+  /* ===== URGENCY INDICATORS ===== */
+  .urgency-urgent { border-left: 4px solid var(--danger); }
+  .urgency-high   { border-left: 4px solid var(--warning); }
   .urgency-medium { border-left: 4px solid #F59E0B; }
-  .urgency-low { border-left: 4px solid #6B7280; }
-  ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #f1f5f9; } ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-  .toast { animation: slideIn 0.3s ease; }
-  .loading { display: inline-block; width: 20px; height: 20px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; }
+  .urgency-low    { border-left: 4px solid #9CA3AF; }
+
+  /* ===== SCROLLBAR ===== */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #f1f5f9; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+  /* ===== ANIMATIONS ===== */
+  @keyframes slideIn { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  .toast { animation: slideIn 0.25s ease; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .loading { display: inline-block; width: 20px; height: 20px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.75s linear infinite; }
+
+  /* ===== LOGIN SCREEN ===== */
+  .login-card { box-shadow: 0 25px 60px rgba(0,0,0,0.35); }
+  .login-input-wrap { position: relative; }
+  .login-input-wrap i { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 14px; pointer-events: none; }
+  .login-input-wrap input { padding-left: 40px; font-size: var(--font-size-md); height: 46px; }
+
+  /* ===== SECTION DIVIDERS ===== */
+  .section-title {
+    font-size: var(--font-size-xs); font-weight: 700; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    display: flex; align-items: center; gap-8px; margin-bottom: 10px;
+  }
 </style>
 </head>
 <body class="bg-gray-50">
 
 <!-- Login Screen -->
-<div id="loginScreen" class="min-h-screen flex items-center justify-center" style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);">
-  <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+<div id="loginScreen" class="min-h-screen flex items-center justify-center" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f3460 100%);">
+  <div class="bg-white rounded-2xl login-card p-8 w-full" style="max-width:420px">
+    <!-- Logo & Title -->
     <div class="text-center mb-8">
       <div class="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style="background:linear-gradient(135deg,#00A651,#0066CC)">
-        <i class="fas fa-users-cog text-white text-2xl"></i>
+        <i class="fas fa-users-cog text-white" style="font-size:26px"></i>
       </div>
-      <h1 class="text-2xl font-bold text-gray-800">OneCad HCNS</h1>
-      <p class="text-gray-500 text-sm mt-1">Hệ thống Quản lý Hành chính Nhân sự</p>
+      <h1 style="font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.3px">OneCad HCNS</h1>
+      <p style="font-size:13px;color:#64748b;margin-top:4px">Hệ thống Quản lý Hành chính Nhân sự</p>
     </div>
-    <div class="space-y-4">
+
+    <!-- Form -->
+    <div style="display:flex;flex-direction:column;gap:16px">
       <div>
-        <label class="text-sm font-medium text-gray-700 block mb-1">Tên đăng nhập</label>
-        <div class="relative">
-          <i class="fas fa-user absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-          <input id="loginUsername" type="text" placeholder="admin" class="pl-10" onkeypress="if(event.key==='Enter')login()">
+        <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:6px">Tên đăng nhập</label>
+        <div class="login-input-wrap">
+          <i class="fas fa-user"></i>
+          <input id="loginUsername" type="text" placeholder="Nhập tên đăng nhập" onkeypress="if(event.key==='Enter')login()">
         </div>
       </div>
       <div>
-        <label class="text-sm font-medium text-gray-700 block mb-1">Mật khẩu</label>
-        <div class="relative">
-          <i class="fas fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-          <input id="loginPassword" type="password" placeholder="••••••••" class="pl-10" onkeypress="if(event.key==='Enter')login()">
+        <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:6px">Mật khẩu</label>
+        <div class="login-input-wrap">
+          <i class="fas fa-lock"></i>
+          <input id="loginPassword" type="password" placeholder="Nhập mật khẩu" onkeypress="if(event.key==='Enter')login()">
         </div>
       </div>
-      <button onclick="login()" class="btn-primary w-full py-3 font-semibold text-center block">
-        <i class="fas fa-sign-in-alt mr-2"></i>Đăng nhập
+      <button onclick="login()" class="btn-primary" style="width:100%;justify-content:center;height:46px;font-size:15px;font-weight:600;margin-top:4px">
+        <i class="fas fa-sign-in-alt"></i>Đăng nhập
       </button>
     </div>
-    <div class="mt-6 p-4 bg-gray-50 rounded-lg text-xs text-gray-500">
-      <p><strong>Admin:</strong> admin / Admin@123</p>
-      <p><strong>HCNS:</strong> hcns / Hcns@123</p>
+
+    <!-- Demo credentials -->
+    <div style="margin-top:20px;padding:12px 16px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0">
+      <p style="font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Tài khoản demo</p>
+      <div style="display:flex;gap:16px;font-size:12px;color:#475569">
+        <span><strong>Admin:</strong> admin / Admin@123</span>
+        <span><strong>HCNS:</strong> hcns / Hcns@123</span>
+      </div>
     </div>
   </div>
 </div>
@@ -898,59 +1022,67 @@ function getHTML(): string {
 <!-- Main App -->
 <div id="mainApp" class="hidden flex h-screen overflow-hidden">
   <!-- Sidebar -->
-  <div class="sidebar w-64 flex-shrink-0 flex flex-col text-white">
-    <div class="p-5 border-b border-white border-opacity-10">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,#00A651,#0066CC)">
-          <i class="fas fa-users-cog text-white"></i>
+  <div class="sidebar w-60 flex-shrink-0 flex flex-col text-white" style="min-width:240px">
+    <!-- Brand -->
+    <div style="padding:18px 20px;border-bottom:1px solid rgba(255,255,255,0.08)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#00A651,#0066CC);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="fas fa-users-cog" style="font-size:15px;color:#fff"></i>
         </div>
         <div>
-          <div class="font-bold text-sm">OneCad HCNS</div>
-          <div class="text-xs text-gray-400">Quản lý Nhân sự</div>
+          <div style="font-size:14px;font-weight:700;color:#fff;line-height:1.2">OneCad HCNS</div>
+          <div style="font-size:11px;color:#64748b;margin-top:1px">Quản lý Nhân sự</div>
         </div>
       </div>
     </div>
-    <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
-      <div class="text-xs text-gray-500 font-semibold uppercase mb-2 px-2">Tổng quan</div>
-      <a href="#" class="nav-item flex items-center gap-3 px-3 py-2.5 text-gray-300 text-sm" onclick="showPage('dashboard')">
-        <i class="fas fa-tachometer-alt w-5"></i><span>Dashboard</span>
+
+    <!-- Nav -->
+    <nav style="flex:1;padding:12px 10px;overflow-y:auto;display:flex;flex-direction:column;gap:1px">
+      <div style="font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.07em;padding:8px 10px 4px">Tổng quan</div>
+      <a href="#" class="nav-item" style="display:flex;align-items:center;gap:10px;padding:8px 10px;color:#94a3b8;text-decoration:none" onclick="showPage('dashboard')">
+        <i class="fas fa-tachometer-alt" style="width:16px;text-align:center;font-size:13px"></i><span style="font-size:13px">Dashboard</span>
       </a>
-      <div class="text-xs text-gray-500 font-semibold uppercase mb-2 mt-4 px-2">Nhân sự</div>
-      <a href="#" class="nav-item flex items-center gap-3 px-3 py-2.5 text-gray-300 text-sm" onclick="showPage('employees')">
-        <i class="fas fa-users w-5"></i><span>Danh sách nhân viên</span>
+
+      <div style="font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.07em;padding:12px 10px 4px">Nhân sự</div>
+      <a href="#" class="nav-item" style="display:flex;align-items:center;gap:10px;padding:8px 10px;color:#94a3b8;text-decoration:none" onclick="showPage('employees')">
+        <i class="fas fa-users" style="width:16px;text-align:center;font-size:13px"></i><span style="font-size:13px">Danh sách nhân viên</span>
       </a>
-      <a href="#" class="nav-item flex items-center gap-3 px-3 py-2.5 text-gray-300 text-sm" onclick="showPage('contracts')">
-        <i class="fas fa-file-contract w-5"></i><span>Hợp đồng lao động</span>
-        <span id="contractBadge" class="ml-auto bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+      <a href="#" class="nav-item" style="display:flex;align-items:center;gap:10px;padding:8px 10px;color:#94a3b8;text-decoration:none" onclick="showPage('contracts')">
+        <i class="fas fa-file-contract" style="width:16px;text-align:center;font-size:13px"></i><span style="font-size:13px;flex:1">Hợp đồng lao động</span>
+        <span id="contractBadge" style="background:#ef4444;color:#fff;font-size:10px;border-radius:10px;padding:1px 6px;display:none;font-weight:700">0</span>
       </a>
-      <a href="#" class="nav-item flex items-center gap-3 px-3 py-2.5 text-gray-300 text-sm" onclick="showPage('leaves')">
-        <i class="fas fa-calendar-minus w-5"></i><span>Nghỉ phép</span>
+      <a href="#" class="nav-item" style="display:flex;align-items:center;gap:10px;padding:8px 10px;color:#94a3b8;text-decoration:none" onclick="showPage('leaves')">
+        <i class="fas fa-calendar-minus" style="width:16px;text-align:center;font-size:13px"></i><span style="font-size:13px">Nghỉ phép</span>
       </a>
-      <div class="text-xs text-gray-500 font-semibold uppercase mb-2 mt-4 px-2">Nhắc nhở</div>
-      <a href="#" class="nav-item flex items-center gap-3 px-3 py-2.5 text-gray-300 text-sm" onclick="showPage('reminders')">
-        <i class="fas fa-bell w-5"></i><span>Nhắc nhở HCNS</span>
-        <span id="reminderBadge" class="ml-auto bg-orange-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+
+      <div style="font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.07em;padding:12px 10px 4px">Công cụ</div>
+      <a href="#" class="nav-item" style="display:flex;align-items:center;gap:10px;padding:8px 10px;color:#94a3b8;text-decoration:none" onclick="showPage('reminders')">
+        <i class="fas fa-bell" style="width:16px;text-align:center;font-size:13px"></i><span style="font-size:13px;flex:1">Nhắc nhở HCNS</span>
+        <span id="reminderBadge" style="background:#f97316;color:#fff;font-size:10px;border-radius:10px;padding:1px 6px;display:none;font-weight:700">0</span>
       </a>
-      <a href="#" class="nav-item flex items-center gap-3 px-3 py-2.5 text-gray-300 text-sm" onclick="showPage('reports')">
-        <i class="fas fa-chart-bar w-5"></i><span>Báo cáo HCNS</span>
+      <a href="#" class="nav-item" style="display:flex;align-items:center;gap:10px;padding:8px 10px;color:#94a3b8;text-decoration:none" onclick="showPage('reports')">
+        <i class="fas fa-chart-bar" style="width:16px;text-align:center;font-size:13px"></i><span style="font-size:13px">Báo cáo HCNS</span>
       </a>
-      <div class="text-xs text-gray-500 font-semibold uppercase mb-2 mt-4 px-2">Hệ thống</div>
-      <a href="#" class="nav-item flex items-center gap-3 px-3 py-2.5 text-gray-300 text-sm" onclick="showPage('sync')">
-        <i class="fas fa-sync-alt w-5"></i><span>Đồng bộ dữ liệu</span>
+
+      <div style="font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.07em;padding:12px 10px 4px">Hệ thống</div>
+      <a href="#" class="nav-item" style="display:flex;align-items:center;gap:10px;padding:8px 10px;color:#94a3b8;text-decoration:none" onclick="showPage('sync')">
+        <i class="fas fa-sync-alt" style="width:16px;text-align:center;font-size:13px"></i><span style="font-size:13px">Đồng bộ dữ liệu</span>
       </a>
-      <a href="#" class="nav-item flex items-center gap-3 px-3 py-2.5 text-gray-300 text-sm" onclick="showPage('settings')">
-        <i class="fas fa-cog w-5"></i><span>Cài đặt</span>
+      <a href="#" class="nav-item" style="display:flex;align-items:center;gap:10px;padding:8px 10px;color:#94a3b8;text-decoration:none" onclick="showPage('settings')">
+        <i class="fas fa-cog" style="width:16px;text-align:center;font-size:13px"></i><span style="font-size:13px">Cài đặt</span>
       </a>
     </nav>
-    <div class="p-4 border-t border-white border-opacity-10">
-      <div class="flex items-center gap-3 mb-3">
-        <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-sm font-bold" id="userAvatar">A</div>
-        <div class="flex-1 min-w-0">
-          <div class="text-sm font-medium truncate" id="userName">Admin</div>
-          <div class="text-xs text-gray-400" id="userRole">hr_admin</div>
+
+    <!-- User footer -->
+    <div style="padding:12px 14px;border-top:1px solid rgba(255,255,255,0.08)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <div id="userAvatar" style="width:32px;height:32px;border-radius:50%;background:#00A651;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0">A</div>
+        <div style="flex:1;min-width:0">
+          <div id="userName" style="font-size:13px;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Admin</div>
+          <div id="userRole" style="font-size:11px;color:#64748b">hr_admin</div>
         </div>
       </div>
-      <button onclick="logout()" class="w-full text-left flex items-center gap-2 text-gray-400 text-sm hover:text-red-400 transition-colors px-2 py-1">
+      <button onclick="logout()" style="width:100%;text-align:left;display:flex;align-items:center;gap:8px;color:#64748b;font-size:12px;background:none;border:none;cursor:pointer;padding:5px 6px;border-radius:6px;transition:color 0.2s" onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='#64748b'">
         <i class="fas fa-sign-out-alt"></i><span>Đăng xuất</span>
       </button>
     </div>
@@ -959,19 +1091,19 @@ function getHTML(): string {
   <!-- Main Content -->
   <div class="flex-1 flex flex-col overflow-hidden">
     <!-- Top Bar -->
-    <div class="bg-white border-b px-6 py-3 flex items-center justify-between">
+    <div style="background:#fff;border-bottom:1px solid #e2e8f0;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
       <div>
-        <h2 class="font-semibold text-gray-800" id="pageTitle">Dashboard</h2>
-        <p class="text-xs text-gray-500" id="pageSubtitle">Tổng quan hệ thống HCNS</p>
+        <h2 id="pageTitle" style="font-size:16px;font-weight:700;color:#0f172a;line-height:1.3">Dashboard</h2>
+        <p id="pageSubtitle" style="font-size:12px;color:#64748b;margin-top:1px">Tổng quan hệ thống HCNS</p>
       </div>
-      <div class="flex items-center gap-3">
-        <div class="text-sm text-gray-500" id="currentDateTime"></div>
-        <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold" style="background:#00A651" id="topUserAvatar">A</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div id="currentDateTime" style="font-size:12px;color:#64748b"></div>
+        <div id="topUserAvatar" style="width:32px;height:32px;border-radius:50%;background:#00A651;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700">A</div>
       </div>
     </div>
 
     <!-- Page Content -->
-    <div class="flex-1 overflow-y-auto p-6" id="pageContent">
+    <div class="flex-1 overflow-y-auto" style="padding:20px 24px" id="pageContent">
       <!-- Content loaded dynamically -->
     </div>
   </div>
