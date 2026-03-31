@@ -641,6 +641,25 @@ async function queryD1(accountId: string, databaseId: string, apiToken: string, 
   return data.result?.[0]?.results ?? []
 }
 
+// Trả về null nếu query lỗi (dùng để thử các cột có thể không tồn tại)
+async function queryD1Safe(accountId: string, databaseId: string, apiToken: string, sql: string): Promise<any[] | null> {
+  try {
+    return await queryD1(accountId, databaseId, apiToken, sql)
+  } catch (_) {
+    return null
+  }
+}
+
+// Lấy danh sách cột thực tế của bảng users trong database nguồn
+async function getTableColumns(accountId: string, databaseId: string, apiToken: string): Promise<Set<string>> {
+  try {
+    const rows = await queryD1(accountId, databaseId, apiToken, `PRAGMA table_info(users)`)
+    return new Set(rows.map((r: any) => r.name as string))
+  } catch (_) {
+    return new Set()
+  }
+}
+
 // Sync nhân viên từ app nguồn qua Cloudflare D1 HTTP API
 app.post('/api/sync/:appName', authMiddleware, async (c) => {
   const db = c.env.DB
@@ -653,41 +672,46 @@ app.post('/api/sync/:appName', authMiddleware, async (c) => {
   }
 
   try {
-    // Query trực tiếp bảng users từ D1 database của app nguồn
-    // Lấy đầy đủ các cột bao gồm thông tin cá nhân mở rộng (migration 0018-0020)
-    // Dùng COALESCE để tương thích cả database cũ (chưa có các cột mở rộng)
+    // Bước 1: Lấy danh sách cột thực tế của bảng users trong DB nguồn
+    const cols = await getTableColumns(source.cf_account_id, source.cf_database_id, source.cf_api_token)
+
+    // Bước 2: Build SELECT động — chỉ select cột nào thực sự tồn tại
+    // Cột bắt buộc (luôn có)
+    const baseCols = `id, username, full_name, email, phone, role, department, salary_monthly, is_active`
+
+    // Helper: chọn cột đầu tiên tồn tại trong danh sách, alias theo tên chuẩn của HCNS
+    const colOr = (aliases: string[], alias: string, fallback = "''") => {
+      const found = aliases.find(a => cols.has(a))
+      return found ? `${found} AS ${alias}` : `${fallback} AS ${alias}`
+    }
+
+    const extCols = [
+      colOr(['gender'], 'gender'),
+      colOr(['position', 'chuc_danh', 'job_title'], 'position'),
+      colOr(['join_date', 'hire_date', 'start_date', 'ngay_vao'], 'join_date'),
+      colOr(['cccd', 'id_number', 'id_card', 'cmnd'], 'cccd'),
+      colOr(['birthday', 'date_of_birth', 'dob', 'ngay_sinh'], 'birthday'),
+      colOr(['cccd_date', 'id_issue_date', 'id_date', 'cmnd_date'], 'id_issue_date'),
+      colOr(['cccd_place', 'id_issue_place', 'id_place', 'cmnd_place'], 'id_issue_place'),
+      colOr(['address', 'permanent_address', 'thuong_tru'], 'address'),
+      colOr(['current_address', 'tam_tru', 'living_address'], 'current_address'),
+      colOr(['social_insurance', 'bhxh', 'si_number'], 'social_insurance'),
+      colOr(['health_insurance', 'bhyt', 'hi_number'], 'health_insurance'),
+      colOr(['tax_code', 'mst', 'tax_id'], 'tax_code'),
+      colOr(['bank_account', 'so_tk', 'account_number'], 'bank_account'),
+      colOr(['bank_name', 'ten_ngan_hang', 'ngan_hang'], 'bank_name'),
+      colOr(['bank_branch', 'chi_nhanh', 'branch'], 'bank_branch'),
+      colOr(['major', 'chuyen_nganh'], 'major'),
+      colOr(['university', 'truong', 'school'], 'university'),
+      colOr(['graduation_year', 'nam_tot_nghiep'], 'graduation_year', '0'),
+      colOr(['degree', 'education', 'trinh_do'], 'degree'),
+    ].join(', ')
+
     const users = await queryD1(
       source.cf_account_id,
       source.cf_database_id,
       source.cf_api_token,
-      `SELECT
-         id, username, full_name, email, phone, role, department, salary_monthly, is_active,
-         -- Thông tin cá nhân cơ bản
-         COALESCE(gender, '')               AS gender,
-         COALESCE(position, '')             AS position,
-         COALESCE(join_date, '')            AS join_date,
-         -- Giấy tờ tùy thân
-         COALESCE(cccd, '')                 AS cccd,
-         COALESCE(birthday, '')             AS birthday,
-         COALESCE(cccd_date, id_issue_date, '') AS id_issue_date,
-         COALESCE(cccd_place, id_issue_place, '') AS id_issue_place,
-         -- Địa chỉ
-         COALESCE(address, '')              AS address,
-         COALESCE(current_address, '')      AS current_address,
-         -- Bảo hiểm & thuế
-         COALESCE(social_insurance, bhxh, '') AS social_insurance,
-         COALESCE(health_insurance, bhyt, '') AS health_insurance,
-         COALESCE(tax_code, mst, '')         AS tax_code,
-         -- Ngân hàng
-         COALESCE(bank_account, '')         AS bank_account,
-         COALESCE(bank_name, '')            AS bank_name,
-         COALESCE(bank_branch, '')          AS bank_branch,
-         -- Học vấn
-         COALESCE(major, '')                AS major,
-         COALESCE(university, '')           AS university,
-         COALESCE(graduation_year, 0)       AS graduation_year,
-         COALESCE(degree, '')               AS degree
-       FROM users WHERE is_active = 1 ORDER BY id`
+      `SELECT ${baseCols}, ${extCols} FROM users WHERE is_active = 1 ORDER BY id`
     )
 
     if (!users || users.length === 0) {
