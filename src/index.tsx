@@ -661,15 +661,32 @@ app.post('/api/sync/:appName', authMiddleware, async (c) => {
       source.cf_database_id,
       source.cf_api_token,
       `SELECT
-         id, username, full_name, email, phone, role, department, salary_monthly, is_active, avatar,
-         COALESCE(cccd, '')            AS cccd,
-         COALESCE(birthday, '')        AS birthday,
-         COALESCE(address, '')         AS address,
-         COALESCE(current_address, '') AS current_address,
-         COALESCE(major, '')           AS major,
-         COALESCE(university, '')      AS university,
-         COALESCE(graduation_year, 0)  AS graduation_year,
-         COALESCE(degree, '')          AS degree
+         id, username, full_name, email, phone, role, department, salary_monthly, is_active,
+         -- Thông tin cá nhân cơ bản
+         COALESCE(gender, '')               AS gender,
+         COALESCE(position, '')             AS position,
+         COALESCE(join_date, '')            AS join_date,
+         -- Giấy tờ tùy thân
+         COALESCE(cccd, '')                 AS cccd,
+         COALESCE(birthday, '')             AS birthday,
+         COALESCE(cccd_date, id_issue_date, '') AS id_issue_date,
+         COALESCE(cccd_place, id_issue_place, '') AS id_issue_place,
+         -- Địa chỉ
+         COALESCE(address, '')              AS address,
+         COALESCE(current_address, '')      AS current_address,
+         -- Bảo hiểm & thuế
+         COALESCE(social_insurance, bhxh, '') AS social_insurance,
+         COALESCE(health_insurance, bhyt, '') AS health_insurance,
+         COALESCE(tax_code, mst, '')         AS tax_code,
+         -- Ngân hàng
+         COALESCE(bank_account, '')         AS bank_account,
+         COALESCE(bank_name, '')            AS bank_name,
+         COALESCE(bank_branch, '')          AS bank_branch,
+         -- Học vấn
+         COALESCE(major, '')                AS major,
+         COALESCE(university, '')           AS university,
+         COALESCE(graduation_year, 0)       AS graduation_year,
+         COALESCE(degree, '')               AS degree
        FROM users WHERE is_active = 1 ORDER BY id`
     )
 
@@ -683,31 +700,72 @@ app.post('/api/sync/:appName', authMiddleware, async (c) => {
       const existing = await db.prepare('SELECT id FROM employees WHERE source_app = ? AND source_id = ?').bind(appName, u.id).first() as any
       if (existing) {
         // Cập nhật thông tin từ app nguồn — CHỈ ghi đè các trường đến từ nguồn,
-        // KHÔNG đụng vào các trường HCNS bổ sung (join_date, contracts, insurance, bank...)
+        // KHÔNG đụng vào các trường HCNS bổ sung do HR nhập tay (contracts, reminders...)
         await db.prepare(
           `UPDATE employees SET
-             username = ?, full_name = ?, email = ?, phone = ?, role = ?,
-             department = ?, salary_monthly = ?, is_active = ?,
-             id_number    = CASE WHEN ? != '' THEN ? ELSE id_number END,
-             date_of_birth= CASE WHEN ? != '' THEN ? ELSE date_of_birth END,
-             address      = CASE WHEN ? != '' THEN ? ELSE address END,
-             current_address = CASE WHEN ? != '' THEN ? ELSE current_address END,
-             major        = CASE WHEN ? != '' THEN ? ELSE major END,
-             education    = CASE WHEN ? != '' THEN ? ELSE education END,
-             university   = CASE WHEN ? != '' THEN ? ELSE university END,
-             graduation_year = CASE WHEN ? != 0 THEN ? ELSE graduation_year END,
+             username    = ?, full_name = ?, email = ?, phone = ?,
+             role        = ?, department = ?, salary_monthly = ?, is_active = ?,
+             gender      = CASE WHEN ? != '' THEN ? ELSE gender END,
+             position    = CASE WHEN ? != '' THEN ? ELSE position END,
+             join_date   = CASE WHEN ? != '' THEN ? ELSE join_date END,
+             id_number         = CASE WHEN ? != '' THEN ? ELSE id_number END,
+             date_of_birth     = CASE WHEN ? != '' THEN ? ELSE date_of_birth END,
+             id_issue_date     = CASE WHEN ? != '' THEN ? ELSE id_issue_date END,
+             id_issue_place    = CASE WHEN ? != '' THEN ? ELSE id_issue_place END,
+             address           = CASE WHEN ? != '' THEN ? ELSE address END,
+             current_address   = CASE WHEN ? != '' THEN ? ELSE current_address END,
+             social_insurance  = CASE WHEN ? != '' THEN ? ELSE social_insurance END,
+             health_insurance  = CASE WHEN ? != '' THEN ? ELSE health_insurance END,
+             tax_code          = CASE WHEN ? != '' THEN ? ELSE tax_code END,
+             bank_account      = CASE WHEN ? != '' THEN ? ELSE bank_account END,
+             bank_name         = CASE WHEN ? != '' THEN ? ELSE bank_name END,
+             bank_branch       = CASE WHEN ? != '' THEN ? ELSE bank_branch END,
+             major             = CASE WHEN ? != '' THEN ? ELSE major END,
+             education         = CASE WHEN ? != '' THEN ? ELSE education END,
+             university        = CASE WHEN ? != '' THEN ? ELSE university END,
+             graduation_year   = CASE WHEN ? != 0 THEN ? ELSE graduation_year END,
              synced_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
            WHERE source_app = ? AND source_id = ?`
         ).bind(
-          u.username, u.full_name, u.email, u.phone, u.role,
-          u.department, u.salary_monthly ?? 0, u.is_active ?? 1,
+          u.username, u.full_name, u.email, u.phone,
+          u.role, u.department, u.salary_monthly ?? 0, u.is_active ?? 1,
+          // gender
+          u.gender, u.gender,
+          // position
+          u.position, u.position,
+          // join_date
+          u.join_date, u.join_date,
+          // id_number (cccd)
           u.cccd, u.cccd,
+          // date_of_birth (birthday)
           u.birthday, u.birthday,
+          // id_issue_date
+          u.id_issue_date, u.id_issue_date,
+          // id_issue_place
+          u.id_issue_place, u.id_issue_place,
+          // address
           u.address, u.address,
+          // current_address
           u.current_address, u.current_address,
+          // social_insurance
+          u.social_insurance, u.social_insurance,
+          // health_insurance
+          u.health_insurance, u.health_insurance,
+          // tax_code
+          u.tax_code, u.tax_code,
+          // bank_account
+          u.bank_account, u.bank_account,
+          // bank_name
+          u.bank_name, u.bank_name,
+          // bank_branch
+          u.bank_branch, u.bank_branch,
+          // major
           u.major, u.major,
+          // education (degree)
           u.degree, u.degree,
+          // university
           u.university, u.university,
+          // graduation_year
           u.graduation_year ?? 0, u.graduation_year ?? 0,
           appName, u.id
         ).run()
@@ -718,17 +776,42 @@ app.post('/api/sync/:appName', authMiddleware, async (c) => {
           `INSERT INTO employees (
              source_app, source_id, username, full_name, email, phone, role,
              department, salary_monthly, is_active, employee_code,
-             id_number, date_of_birth, address, current_address,
+             gender, position, join_date,
+             id_number, date_of_birth, id_issue_date, id_issue_place,
+             address, current_address,
+             social_insurance, health_insurance, tax_code,
+             bank_account, bank_name, bank_branch,
              major, education, university, graduation_year,
              synced_at
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+           ) VALUES (
+             ?, ?, ?, ?, ?, ?, ?,
+             ?, ?, ?, ?,
+             ?, ?, ?,
+             ?, ?, ?, ?,
+             ?, ?,
+             ?, ?, ?,
+             ?, ?, ?,
+             ?, ?, ?, ?,
+             CURRENT_TIMESTAMP
+           )`
         ).bind(
           appName, u.id, u.username, u.full_name, u.email, u.phone, u.role,
           u.department, u.salary_monthly ?? 0, u.is_active ?? 1, empCode,
+          u.gender || null,
+          u.position || null,
+          u.join_date || null,
           u.cccd || null,
           u.birthday || null,
+          u.id_issue_date || null,
+          u.id_issue_place || null,
           u.address || null,
           u.current_address || null,
+          u.social_insurance || null,
+          u.health_insurance || null,
+          u.tax_code || null,
+          u.bank_account || null,
+          u.bank_name || null,
+          u.bank_branch || null,
           u.major || null,
           u.degree || null,
           u.university || null,
