@@ -162,64 +162,65 @@ async function renderDashboard() {
     document.getElementById('pageContent').innerHTML = `
     <div class="space-y-6">
       <!-- KPI Cards -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px">
         <div class="kpi-card" style="background:linear-gradient(135deg,#00A651,#00c460)">
-          <div class="flex items-center justify-between mb-3">
-            <i class="fas fa-users text-2xl opacity-80"></i>
-            <span class="text-xs bg-white bg-opacity-20 px-2 py-1 rounded-full">Tổng nhân sự</span>
+          <div class="flex items-center justify-between mb-2">
+            <i class="fas fa-users text-xl opacity-80"></i>
+            <span style="font-size:10px;background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:20px">Tổng nhân sự</span>
           </div>
-          <div class="text-3xl font-bold">${s.total_employees}</div>
-          <div class="text-sm opacity-80 mt-1">
+          <div style="font-size:28px;font-weight:700;line-height:1">${s.total_employees}</div>
+          <div style="font-size:11px;opacity:0.85;margin-top:4px">
             <span class="mr-2"><i class="fas fa-building mr-1"></i>BIM: ${s.bim_employees}</span>
             <span><i class="fas fa-drafting-compass mr-1"></i>C3D: ${s.c3d_employees}</span>
           </div>
         </div>
         <div class="kpi-card" style="background:linear-gradient(135deg,#0066CC,#4d94ff)">
-          <div class="flex items-center justify-between mb-3">
-            <i class="fas fa-file-contract text-2xl opacity-80"></i>
-            <span class="text-xs bg-white bg-opacity-20 px-2 py-1 rounded-full">Hợp đồng</span>
+          <div class="flex items-center justify-between mb-2">
+            <i class="fas fa-file-contract text-xl opacity-80"></i>
+            <span style="font-size:10px;background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:20px">Hợp đồng</span>
           </div>
-          <div class="text-3xl font-bold">${s.active_contracts}</div>
-          <div class="text-sm opacity-80 mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>${s.expiring_contracts} sắp hết hạn (30 ngày)</div>
+          <div style="font-size:28px;font-weight:700;line-height:1">${s.active_contracts}</div>
+          <div style="font-size:11px;opacity:0.85;margin-top:4px"><i class="fas fa-exclamation-triangle mr-1"></i>${s.expiring_contracts} sắp hết hạn</div>
         </div>
         <div class="kpi-card" style="background:linear-gradient(135deg,#FF6B00,#ff9640)">
-          <div class="flex items-center justify-between mb-3">
-            <i class="fas fa-bell text-2xl opacity-80"></i>
-            <span class="text-xs bg-white bg-opacity-20 px-2 py-1 rounded-full">Nhắc nhở</span>
+          <div class="flex items-center justify-between mb-2">
+            <i class="fas fa-bell text-xl opacity-80"></i>
+            <span style="font-size:10px;background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:20px">Nhắc nhở</span>
           </div>
-          <div class="text-3xl font-bold">${s.urgent_reminders}</div>
-          <div class="text-sm opacity-80 mt-1">Cần xử lý trong 7 ngày</div>
+          <div style="font-size:28px;font-weight:700;line-height:1">${s.urgent_reminders}</div>
+          <div style="font-size:11px;opacity:0.85;margin-top:4px">Cần xử lý trong 7 ngày</div>
         </div>
         <div class="kpi-card" style="background:linear-gradient(135deg,#7C3AED,#a855f7)">
-          <div class="flex items-center justify-between mb-3">
-            <i class="fas fa-calendar-minus text-2xl opacity-80"></i>
-            <span class="text-xs bg-white bg-opacity-20 px-2 py-1 rounded-full">Nghỉ phép</span>
+          <div class="flex items-center justify-between mb-2">
+            <i class="fas fa-calendar-minus text-xl opacity-80"></i>
+            <span style="font-size:10px;background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:20px">Nghỉ phép</span>
           </div>
-          <div class="text-3xl font-bold">${s.pending_leave}</div>
-          <div class="text-sm opacity-80 mt-1">Đơn chờ phê duyệt</div>
+          <div style="font-size:28px;font-weight:700;line-height:1">${s.pending_leave}</div>
+          <div style="font-size:11px;opacity:0.85;margin-top:4px">Đơn chờ phê duyệt</div>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div style="display:grid;grid-template-columns:1fr;gap:16px">
+        <div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:16px;align-items:start">
         <!-- Hợp đồng sắp hết hạn -->
-        <div class="card p-5 lg:col-span-2">
+        <div class="card p-5">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="font-semibold text-gray-800"><i class="fas fa-clock text-orange-500 mr-2"></i>Hợp đồng sắp hết hạn (30 ngày)</h3>
-            <button onclick="showPage('contracts')" class="text-sm text-blue-600 hover:underline">Xem tất cả</button>
+            <h3 class="font-semibold text-gray-800" style="font-size:13px"><i class="fas fa-clock text-orange-500 mr-2"></i>Hợp đồng sắp hết hạn (30 ngày)</h3>
+            <button onclick="showPage('contracts')" class="text-blue-600 hover:underline" style="font-size:12px">Xem tất cả</button>
           </div>
-          ${d.expiring_contracts.length === 0 ? '<div class="text-center text-gray-400 py-6"><i class="fas fa-check-circle text-3xl mb-2 text-green-400"></i><p>Không có HĐ nào sắp hết hạn</p></div>' :
+          ${d.expiring_contracts.length === 0 ? '<div class="text-center text-gray-400 py-6"><i class="fas fa-check-circle text-3xl mb-2 text-green-400"></i><p style="font-size:13px">Không có HĐ nào sắp hết hạn</p></div>' :
           `<div class="space-y-2">
             ${d.expiring_contracts.map(c => {
               const days = daysDiff(c.end_date)
               const urgency = days <= 7 ? 'urgency-urgent' : days <= 14 ? 'urgency-high' : 'urgency-medium'
               return `<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg ${urgency}">
                 <div class="flex-1 min-w-0">
-                  <div class="font-medium text-sm truncate">${c.full_name} ${srcBadge(c.source_app)}</div>
-                  <div class="text-xs text-gray-500">${c.contract_number} · ${contractTypeName(c.contract_type)} · ${c.department || '—'}</div>
+                  <div class="font-medium truncate" style="font-size:12px">${c.full_name} ${srcBadge(c.source_app)}</div>
+                  <div class="text-gray-500" style="font-size:11px">${c.contract_number} · ${contractTypeName(c.contract_type)} · ${c.department || '—'}</div>
                 </div>
                 <div class="text-right flex-shrink-0">
-                  <div class="text-xs font-bold ${days <= 7 ? 'text-red-600' : days <= 14 ? 'text-orange-600' : 'text-yellow-600'}">${days} ngày</div>
-                  <div class="text-xs text-gray-500">${fmtDate(c.end_date)}</div>
+                  <div class="font-bold" style="font-size:11px;color:${days <= 7 ? '#dc2626' : days <= 14 ? '#d97706' : '#ca8a04'}">${days} ngày</div>
+                  <div class="text-gray-500" style="font-size:11px">${fmtDate(c.end_date)}</div>
                 </div>
               </div>`
             }).join('')}
@@ -228,16 +229,19 @@ async function renderDashboard() {
 
         <!-- Biểu đồ phân bổ -->
         <div class="card p-5">
-          <h3 class="font-semibold text-gray-800 mb-4"><i class="fas fa-chart-pie text-blue-500 mr-2"></i>Nhân sự theo nguồn</h3>
-          <canvas id="sourceChart" height="200"></canvas>
-          <div class="mt-4 space-y-2">
+          <h3 class="font-semibold text-gray-800 mb-3" style="font-size:13px"><i class="fas fa-chart-pie text-blue-500 mr-2"></i>Nhân sự theo nguồn</h3>
+          <div style="position:relative;width:100%;height:160px">
+            <canvas id="sourceChart"></canvas>
+          </div>
+          <div class="mt-3 space-y-2">
             ${d.by_department.slice(0,5).map(dept => `
             <div class="flex items-center gap-2">
-              <div class="text-xs text-gray-600 flex-1 truncate">${dept.department || 'Chưa phân bổ'}</div>
-              <div class="flex-1 bg-gray-100 rounded-full h-2"><div class="h-2 rounded-full" style="width:${Math.min(100, dept.cnt / s.total_employees * 100)}%;background:#00A651"></div></div>
-              <div class="text-xs font-medium text-gray-700 w-6 text-right">${dept.cnt}</div>
+              <div class="text-gray-600 flex-1 truncate" style="font-size:11px">${dept.department || 'Chưa phân bổ'}</div>
+              <div class="flex-1 bg-gray-100 rounded-full" style="height:6px"><div class="rounded-full" style="height:6px;width:${Math.min(100, dept.cnt / s.total_employees * 100)}%;background:#00A651"></div></div>
+              <div class="font-medium text-gray-700" style="font-size:11px;min-width:16px;text-align:right">${dept.cnt}</div>
             </div>`).join('')}
           </div>
+        </div>
         </div>
       </div>
 
@@ -273,7 +277,14 @@ async function renderDashboard() {
             labels: d.by_source.map(x => x.source_app),
             datasets: [{ data: d.by_source.map(x => x.cnt), backgroundColor: ['#0066CC', '#00A651', '#FF6B00', '#7C3AED'], borderWidth: 0 }]
           },
-          options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { padding: 15, font: { size: 12 } } } }, cutout: '65%' }
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { padding: 10, font: { size: 11 }, boxWidth: 12 } }
+            },
+            cutout: '60%'
+          }
         })
       }
     }

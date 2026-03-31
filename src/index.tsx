@@ -1039,7 +1039,14 @@ function getHTML(): string {
   .badge-warning  { background: #fef3c7; color: #d97706; padding: 2px 10px; border-radius: 20px; font-size: var(--font-size-xs); font-weight: 600; display: inline-block; }
 
   /* ===== KPI CARDS ===== */
-  .kpi-card { border-radius: var(--radius-lg); padding: 20px 24px; color: white; }
+  .kpi-card { border-radius: var(--radius-lg); padding: 16px 20px; color: white; min-width: 0; }
+
+  /* ===== RESPONSIVE LAYOUT ===== */
+  /* Đảm bảo nội dung không tràn khi zoom */
+  #pageContent { min-width: 0; overflow-x: hidden; }
+  .space-y-6 > * { min-width: 0; }
+  /* Chart canvas luôn fit container */
+  canvas { max-width: 100% !important; }
 
   /* ===== TABLE ===== */
   .table-row:hover { background: #f0f7ff; }
