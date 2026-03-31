@@ -476,6 +476,8 @@ async function showEmployeeDetail(id) {
           <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Ngày ký HĐ chính thức</div><div>${fmtDate(e.official_start)}</div></div>
           <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Trình độ</div><div>${e.education || '—'}</div></div>
           <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Chuyên ngành</div><div>${e.major || '—'}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Trường đại học</div><div class="text-sm">${e.university || '—'}</div></div>
+          <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Năm tốt nghiệp</div><div>${e.graduation_year || '—'}</div></div>
           <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Số BHXH</div><div>${e.social_insurance || '—'}</div></div>
           <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Mã số thuế</div><div>${e.tax_code || '—'}</div></div>
           <div class="bg-gray-50 p-3 rounded-lg"><div class="text-xs text-gray-500 mb-1">Tài khoản NH</div><div>${e.bank_account ? e.bank_account + ' - ' + (e.bank_name||'') : '—'}</div></div>
@@ -565,6 +567,10 @@ async function showEditEmployee(id) {
           <select name="education"><option value="">—</option><option ${e.education==='Trung học'?'selected':''}>Trung học</option><option ${e.education==='Trung cấp'?'selected':''}>Trung cấp</option><option ${e.education==='Cao đẳng'?'selected':''}>Cao đẳng</option><option ${e.education==='Đại học'?'selected':''}>Đại học</option><option ${e.education==='Thạc sĩ'?'selected':''}>Thạc sĩ</option><option ${e.education==='Tiến sĩ'?'selected':''}>Tiến sĩ</option></select></div>
         <div><label class="text-xs font-medium text-gray-700 block mb-1">Chuyên ngành</label>
           <input name="major" value="${e.major||''}"></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Trường đại học</label>
+          <input name="university" value="${e.university||''}" placeholder="VD: ĐH Bách Khoa Hà Nội"></div>
+        <div><label class="text-xs font-medium text-gray-700 block mb-1">Năm tốt nghiệp</label>
+          <input type="number" name="graduation_year" value="${e.graduation_year||''}" placeholder="VD: 2015" min="1980" max="2099"></div>
       </div>
       <hr>
       <div class="text-xs font-semibold text-gray-500 uppercase">Bảo hiểm & Thuế</div>

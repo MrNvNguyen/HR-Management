@@ -49,8 +49,10 @@ CREATE TABLE IF NOT EXISTS employees (
   probation_end DATE,          -- Kết thúc thử việc
   official_start DATE,         -- Ngày ký HĐ chính thức
   position TEXT,               -- Chức danh
-  education TEXT,              -- Trình độ học vấn
+  education TEXT,              -- Trình độ học vấn (degree từ BIM/C3D)
   major TEXT,                  -- Chuyên ngành
+  university TEXT,             -- Trường đại học
+  graduation_year INTEGER,     -- Năm tốt nghiệp
   
   -- Thông tin bảo hiểm & thuế
   social_insurance TEXT,       -- Số BHXH
